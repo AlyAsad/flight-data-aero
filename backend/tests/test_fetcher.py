@@ -248,3 +248,49 @@ def test_set_groups_drops_pending_jobs(fetcher):
     fetcher.set_groups([g for g in GROUPS if g.id != "LON"])
     assert all(k.group_id != "LON" for k in fetcher.queued_keys())
     assert fetcher.progress.total == 7 * 2
+
+
+class TestDoubleCheckEmpty:
+    async def test_auto_rechecks_empty_airports_with_serpapi(self, fetcher, ff, serp, cache):
+        ff.empty_for = {"NCL", "STN"}
+        fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+        await drain(fetcher)
+        # One SerpApi query per empty group-day: NCL x7 and STN (in London) x7.
+        assert sorted(c[0] for c in serp.calls) == ["NCL"] * 7 + ["STN"] * 7
+        e = cache.get(RouteKey(FROM, "NCL", "KHI", CENTER))
+        assert e.provider == "serpapi" and e.status is EntryStatus.OK
+        assert e.completeness is Completeness.FULL
+        # London's other airports keep their fast-flights data.
+        assert cache.get(RouteKey(FROM, "LHR", "KHI", CENTER)).provider == "fast_flights"
+        # Cached: reloading does not re-check.
+        assert fetcher.plan_view(FROM, "KHI", CENTER, "NCL") == 0
+
+    async def test_serpapi_also_empty_is_stored_as_empty(self, fetcher, ff, serp, cache):
+        ff.empty_for = {"NCL"}
+        serp.inner.empty_for = {"NCL"}
+        fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+        await drain(fetcher)
+        e = cache.get(RouteKey(FROM, "NCL", "KHI", CENTER))
+        assert e.status is EntryStatus.EMPTY and e.provider == "serpapi"
+
+    async def test_failed_double_check_keeps_fast_flights_result(self, fetcher, ff, serp, cache):
+        ff.empty_for = {"NCL"}
+        serp.inner.fail = True
+        fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+        await drain(fetcher)
+        e = cache.get(RouteKey(FROM, "NCL", "KHI", CENTER))
+        assert e.status is EntryStatus.EMPTY and e.provider == "fast_flights"
+
+    async def test_not_in_fast_flights_mode(self, fetcher, ff, serp, settings):
+        set_mode(settings, ProviderMode.FAST_FLIGHTS)
+        ff.empty_for = {"NCL"}
+        fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+        await drain(fetcher)
+        assert serp.calls == []
+
+    async def test_respects_cap(self, fetcher, ff, serp, settings):
+        settings.save(settings.get().model_copy(update={"serpapi_monthly_cap": 0}))
+        ff.empty_for = {"NCL"}
+        fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+        await drain(fetcher)
+        assert serp.calls == []

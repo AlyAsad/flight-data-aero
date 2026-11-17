@@ -489,6 +489,7 @@ class Fetcher:
     ) -> None:
         k = job.key
         errors: list[str] = []
+        empty: list[str] = []
         for i, airport in enumerate(airports):
             if i:
                 await self._delay()
@@ -506,11 +507,46 @@ class Fetcher:
                 continue
             self.providers.record_success(provider)
             self._store(job, airport, flights, provider.name, Completeness.FULL)
+            if not flights:
+                empty.append(airport)
         await self._delay()
+        if empty and self._should_double_check(provider):
+            await self._double_check_empty(job, empty)
         if errors and len(errors) == len(airports):
             self._emit_error(k, errors[0])
         else:
             self._emit_done(k)
+
+    def _should_double_check(self, provider: FlightProvider) -> bool:
+        """In auto mode, empty fast-flights results are re-checked with SerpApi.
+
+        Google's single-airport page sometimes has no itineraries for smaller
+        airports (e.g. BRS/LBA → KHI) even though connections exist.
+        """
+        return (
+            provider is self.providers.fast_flights
+            and self._settings.get().provider_mode is ProviderMode.AUTO
+            and self.providers.serpapi_usable()
+        )
+
+    async def _double_check_empty(self, job: Job, airports: list[str]) -> None:
+        """One SerpApi query for the airports fast-flights found empty (full data)."""
+        serp = self.providers.serpapi
+        k = job.key
+        origin, dest = route_endpoints(k.direction, ",".join(airports), k.foreign)
+        try:
+            flights = await serp.search_one_way(origin, dest, k.date)
+        except ProviderError as exc:
+            # Keep fast-flights' empty result; the double-check is best effort.
+            self.providers.record_failure(serp, str(exc))
+            log.warning("SerpApi double-check failed for %s: %s", k, exc)
+            return
+        finally:
+            await self._delay()
+        self.providers.record_success(serp)
+        by_airport = self._split_by_uk_airport(k.direction, flights)
+        for airport in airports:
+            self._store(job, airport, by_airport.get(airport, []), serp.name, Completeness.FULL)
 
     async def _fetch_group(self, provider: SerpApiProvider, job: Job) -> None:
         k = job.key

@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from pydantic_settings import SettingsConfigDict
 
 from app.cache import Database, FlightCache, SettingsStore, UsageStore
 from app.config import EnvSettings
@@ -39,6 +40,7 @@ class FakeProvider:
     def __init__(self, name: str = "fast_flights", fail: bool = False):
         self.name = name
         self.fail = fail
+        self.empty_for: set[str] = set()  # airports that return no flights
         self.calls: list[tuple[str, str, date]] = []
 
     async def search_one_way(self, origin: str, destination: str, date: date) -> list[FlightOption]:
@@ -48,6 +50,8 @@ class FakeProvider:
         flights = []
         for o in origin.split(","):
             for d in destination.split(","):
+                if o in self.empty_for or d in self.empty_for:
+                    continue
                 flights.append(make_flight(o, d, date, 300 + len(self.calls)))
         return flights
 
@@ -76,9 +80,19 @@ async def no_sleep(_seconds: float) -> None:
     return None
 
 
+class IsolatedEnv(EnvSettings):
+    """EnvSettings that ignores the developer's .env and environment variables."""
+
+    model_config = SettingsConfigDict(env_file=None, extra="ignore")
+
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, *args, **kwargs):
+        return (init_settings,)
+
+
 @pytest.fixture
 def env(tmp_path) -> EnvSettings:
-    return EnvSettings(_env_file=None, db_path=tmp_path / "test.db", serpapi_api_key="")
+    return IsolatedEnv(db_path=tmp_path / "test.db", serpapi_api_key="")
 
 
 @pytest.fixture

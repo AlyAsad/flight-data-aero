@@ -9,7 +9,7 @@ See [spec.md](spec.md) for the full specification.
 
 ## Quick start
 
-Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/), Node 20+.
+Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 20+. Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`. If you installed it with `pip` under pyenv, run `pyenv rehash` so your shell can find it.
 
 ```bash
 cp .env.example .env        # optionally add SERPAPI_API_KEY
@@ -49,7 +49,7 @@ Results fill in as they arrive. The status line shows progress ("Loading 23 of 7
 
 Provider modes:
 
-- `auto`: uses fast-flights. After 3 consecutive failures it switches to SerpApi for 30 minutes, if a key is set.
+- `auto`: uses fast-flights. After 3 consecutive failures it switches to SerpApi for 30 minutes, if a key is set. When fast-flights finds no flights for some airports in a city on a given day, one SerpApi query re-checks just those airports. That costs 1 search per empty city-day, stays within the cap, and isn't repeated until the cache expires.
 - `fast_flights`: fast-flights only.
 - `serpapi`: SerpApi only.
 
@@ -61,7 +61,7 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 
 - Google shows a cookie-consent page to UK/EU IPs. The adapter sends consent cookies (`GOOGLE_CONSENT_COOKIE=true`) so results come back instead.
 - fast-flights 3.1.0's own parser skips Google's "best flights" section and drops flight numbers, so the adapter parses the page payload itself and uses fast-flights only to build the query.
-- For some less common routes, such as Bristol or Leeds Bradford to Karachi, Google's page holds no results even though SerpApi finds itineraries (usually a coach or rail leg to a hub airport). These cities show "—" with fast-flights.
+- For some less common routes, such as Bristol or Leeds Bradford to Karachi, Google's page holds no results even though SerpApi finds itineraries (usually a coach or rail leg to a hub airport). In `auto` mode the SerpApi double-check fills these in. In `fast_flights` mode they show "—".
 
 ## Configuration
 

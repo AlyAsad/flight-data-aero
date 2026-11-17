@@ -2,7 +2,12 @@
 BACKEND  := backend
 FRONTEND := frontend
 HOST     := 127.0.0.1
+# `env -u VIRTUAL_ENV` stops an unrelated activated venv from confusing uv.
 UV       := cd $(BACKEND) && env -u VIRTUAL_ENV uv
+
+ifeq ($(shell command -v uv 2>/dev/null),)
+$(error uv not found on PATH. Install it with `curl -LsSf https://astral.sh/uv/install.sh | sh` (or, if you installed it with pip under pyenv, run `pyenv rehash`), then open a new terminal)
+endif
 ARGS     ?=
 
 .DEFAULT_GOAL := help
