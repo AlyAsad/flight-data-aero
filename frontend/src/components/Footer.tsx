@@ -33,7 +33,7 @@ export function Footer() {
         <IconLink href={LINKEDIN_URL} label="LinkedIn" path={LINKEDIN_PATH} />
       </div>
       <p>
-        <span className="font-medium text-slate-600">Aero</span> · built by Aly Asad
+        <span className="font-medium text-slate-600">Aero</span> · built by Aly Gilani
       </p>
       <p className="text-xs text-slate-400">Prices from Google Flights. Always check with the airline before booking.</p>
     </footer>

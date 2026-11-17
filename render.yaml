@@ -1,5 +1,3 @@
-# Render Blueprint: New > Blueprint, pick this repo. Free plan: sleeps after
-# 15 min without traffic and the disk is wiped on restart (the cache refills).
 services:
   - type: web
     name: aero

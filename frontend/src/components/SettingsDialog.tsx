@@ -25,9 +25,9 @@ export function validateDelayMs(minMs: number, maxMs: number): string | null {
 const toMs = (s: number) => Math.round(s * 1000);
 
 const MODES: { value: ProviderMode; label: string; help: string }[] = [
-  { value: "auto", label: "Auto", help: "fast-flights first; SerpApi for 30 min after 3 failures (if a key is set)." },
+  { value: "auto", label: "Auto", help: "fast-flights first; SerpApi for 30 min after 3 failures." },
   { value: "fast_flights", label: "fast-flights only", help: "Free, unofficial Google Flights scraper." },
-  { value: "serpapi", label: "SerpApi only", help: "Uses your SerpApi quota, never beyond the cap." },
+  { value: "serpapi", label: "SerpApi only", help: "Uses the SerpApi quota, never beyond the cap." },
 ];
 
 function LockIcon({ open = false }: { open?: boolean }) {
