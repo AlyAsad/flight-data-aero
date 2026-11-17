@@ -23,6 +23,7 @@ Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/getting-started/insta
 ```bash
 cp .env.example .env        # optionally add SERPAPI_API_KEY
 make install                # uv sync + npm install
+make start                  # starts the server on localhost
 ```
 
 `make start` builds the frontend and serves everything from FastAPI on `http://localhost:8000` as a single process. The server binds to `127.0.0.1` only.
