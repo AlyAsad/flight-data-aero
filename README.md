@@ -11,7 +11,7 @@ See [spec.md](spec.md) for the full specification.
 
 ## Live site
 
-**Live:** [flight-data-aly.vercel.app](https://flight-data-aly.vercel.app/)
+**Live:** [aero-aly.vercel.app](https://aero-aly.vercel.app/)
 
 Or run it on your own computer (below). Both work the same way.
 
