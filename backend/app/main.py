@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -11,8 +12,23 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api.routes import router
+from .cache import utcnow
 from .config import FRONTEND_DIST, get_env
 from .state import AppState
+
+USAGE_SYNC_INTERVAL_SECONDS = 30 * 60
+log = logging.getLogger(__name__)
+
+
+async def _sync_serpapi_usage(services: AppState) -> None:
+    """Keep the local SerpApi counter at least as high as SerpApi's own count."""
+    while True:
+        remote = await services.providers.serpapi.account_usage()
+        if remote is not None:
+            used = services.usage.sync_remote(remote, utcnow())
+            log.info("SerpApi usage synced: %d this month", used)
+        await asyncio.sleep(USAGE_SYNC_INTERVAL_SECONDS)
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -23,14 +39,16 @@ def create_app(state: AppState | None = None, serve_frontend: bool = True) -> Fa
         services = state or AppState.build(get_env())
         app.state.services = services
         services.fetcher.start()
+        sync_task = asyncio.create_task(_sync_serpapi_usage(services))
         try:
             yield
         finally:
+            sync_task.cancel()
             await services.fetcher.stop()
             await services.providers.serpapi.aclose()
             services.db.close()
 
-    app = FastAPI(title="UK Multi-Airport Flight Finder", lifespan=lifespan)
+    app = FastAPI(title="Aero", lifespan=lifespan)
     app.include_router(router)
 
     if serve_frontend and (FRONTEND_DIST / "index.html").exists():

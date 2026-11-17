@@ -8,6 +8,7 @@ import type {
   WeekFlightsResponse,
   WeekSummary,
 } from "./types";
+import { getAdminPassword } from "./admin";
 
 export class ApiError extends Error {
   constructor(
@@ -19,9 +20,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const admin = getAdminPassword();
   const res = await fetch(`/api${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(admin ? { "X-Admin-Password": admin } : {}),
+      ...init?.headers,
+    },
   });
   if (!res.ok) {
     let detail = res.statusText;
@@ -94,4 +100,7 @@ export const api = {
   putSettings: (s: Partial<AppSettings>) =>
     request<AppSettings>("/settings", { method: "PUT", body: JSON.stringify(s) }),
   status: () => request<Status>("/status"),
+  /** Verify a candidate admin password without storing it. */
+  adminCheck: (password: string) =>
+    request<{ ok: boolean }>("/admin/check", { method: "POST", headers: { "X-Admin-Password": password } }),
 };

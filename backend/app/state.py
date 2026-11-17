@@ -20,6 +20,7 @@ from .uk_groups import GroupStore, load_groups
 
 @dataclass
 class AppState:
+    env: EnvSettings
     db: Database
     cache: FlightCache
     settings: SettingsStore
@@ -73,6 +74,7 @@ class AppState:
             **kwargs,
         )
         return cls(
+            env=env,
             db=db,
             cache=cache,
             settings=settings,

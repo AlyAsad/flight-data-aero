@@ -123,6 +123,7 @@ export interface AppSettings {
 }
 
 export interface Status {
+  admin_protected: boolean;
   active_provider: string | null;
   provider_mode: ProviderMode;
   switch_reason: string | null;

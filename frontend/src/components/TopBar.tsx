@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useAirportSearch } from "../hooks/queries";
 import { addDays, rangeLabel, weekDates } from "../lib/dates";
 import type { Direction, QueueProgress, Status } from "../lib/types";
+import { useAdminPassword } from "../lib/admin";
 import { AirportPicker, airportLabel } from "./AirportPicker";
+import { Brand } from "./Logo";
 import { Spinner } from "./Spinner";
 
 interface Props {
@@ -31,6 +33,7 @@ export function TopBar(props: Props) {
   return (
     <header className="border-b border-slate-200 bg-white px-4 py-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Brand />
         <div
           role="group"
           aria-label="Direction"
@@ -86,6 +89,7 @@ export function TopBar(props: Props) {
 
         <div className="ml-auto flex items-center gap-1">
           <RefreshMenu
+            adminOnlyHidden={!!props.status?.admin_protected}
             onRefreshWeek={props.onRefreshWeek}
             onExpireAll={props.onExpireAll}
             onClearCache={props.onClearCache}
@@ -106,8 +110,13 @@ export function TopBar(props: Props) {
   );
 }
 
-function RefreshMenu(props: Pick<Props, "onRefreshWeek" | "onExpireAll" | "onClearCache">) {
+function RefreshMenu(
+  props: Pick<Props, "onRefreshWeek" | "onExpireAll" | "onClearCache"> & { adminOnlyHidden: boolean },
+) {
   const [open, setOpen] = useState(false);
+  const admin = useAdminPassword();
+  // On a protected site, cache-wide actions need an unlocked admin session.
+  const showCacheActions = !props.adminOnlyHidden || !!admin;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -150,12 +159,13 @@ function RefreshMenu(props: Pick<Props, "onRefreshWeek" | "onExpireAll" | "onCle
           className="absolute right-0 z-30 mt-1 w-48 rounded-md border border-slate-200 bg-white py-1 shadow-lg"
         >
           {item("Refresh week", props.onRefreshWeek)}
-          {item(
-            "Refresh all cache",
-            props.onExpireAll,
-            "Mark all cached flights as expired and re-fetch the current view?",
-          )}
-          {item("Clear cache", props.onClearCache, "Delete all cached flight data?")}
+          {showCacheActions &&
+            item(
+              "Refresh all cache",
+              props.onExpireAll,
+              "Mark all cached flights as expired and re-fetch the current view?",
+            )}
+          {showCacheActions && item("Clear cache", props.onClearCache, "Delete all cached flight data?")}
         </div>
       )}
     </div>

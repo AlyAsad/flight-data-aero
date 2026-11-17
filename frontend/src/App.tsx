@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { airportLabel } from "./components/AirportPicker";
 import { CitySidebar } from "./components/CitySidebar";
 import { FlightPanel } from "./components/FlightPanel";
+import { Footer } from "./components/Footer";
 import { Heatmap } from "./components/Heatmap";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { TopBar } from "./components/TopBar";
@@ -109,6 +110,7 @@ export default function App() {
                 onSort={(sort) => update({ sort })}
               />
             )}
+            <Footer />
           </main>
         </div>
       )}

@@ -171,3 +171,64 @@ def test_toggle_uk_groups(client):
 
     assert client.put("/api/uk-groups", json={"enabled": []}).status_code == 422
     assert client.put("/api/uk-groups", json={"enabled": ["XXX"]}).status_code == 422
+
+
+@pytest.fixture
+def admin_client(env):
+    env = env.model_copy(update={"admin_password": "s3cret"})
+    state = AppState.build(
+        env,
+        fast_flights=FakeProvider(),
+        serpapi=FakeSerpApi(available=False),
+        groups=GROUPS,
+        sleep=no_sleep,
+    )
+    import app.api.routes as routes
+
+    routes.FAILED_LOGIN_DELAY_SECONDS = 0
+    with TestClient(create_app(state, serve_frontend=False)) as c:
+        yield c
+
+
+def test_defaults_to_fast_flights_and_open_without_admin_password(client):
+    assert client.get("/api/settings").json()["provider_mode"] == "fast_flights"
+    assert client.get("/api/status").json()["admin_protected"] is False
+    assert client.put("/api/settings", json={"provider_mode": "auto"}).status_code == 200
+    assert client.post("/api/admin/check").status_code == 200
+
+
+def test_admin_password_protects_shared_settings(admin_client):
+    c = admin_client
+    assert c.get("/api/status").json()["admin_protected"] is True
+    protected = [
+        ("put", "/api/settings", {"provider_mode": "auto"}),
+        ("put", "/api/uk-groups", {"enabled": ["LON"]}),
+        ("post", "/api/cache/expire-all", None),
+        ("delete", "/api/cache", None),
+        ("post", "/api/admin/check", None),
+    ]
+    for method, url, body in protected:
+        kwargs = {"json": body} if body is not None else {}
+        assert getattr(c, method)(url, **kwargs).status_code == 401, url
+        bad = {"X-Admin-Password": "nope"}
+        assert getattr(c, method)(url, headers=bad, **kwargs).status_code == 401, url
+        ok = {"X-Admin-Password": "s3cret"}
+        assert getattr(c, method)(url, headers=ok, **kwargs).status_code == 200, url
+    assert c.get("/api/settings").json()["provider_mode"] == "auto"
+
+
+def test_public_endpoints_stay_open_with_admin_password(admin_client):
+    c = admin_client
+    params = {
+        "direction": "from_uk",
+        "foreign": "KHI",
+        "center_date": CENTER,
+        "selected_group": "NCL",
+    }
+    assert c.get("/api/week", params=params).status_code == 200
+    assert c.get("/api/settings").status_code == 200
+    res = c.post(
+        "/api/refresh",
+        json={"scope": "week", "direction": "from_uk", "foreign": "KHI", "center_date": CENTER},
+    )
+    assert res.status_code == 200

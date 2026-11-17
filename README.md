@@ -1,6 +1,8 @@
-# UK Multi-Airport Flight Finder
+# Aero
 
-A locally run web app that compares one-way economy flights between one international airport and eight UK city groups, a week at a time, so you can pick the cheapest or most convenient UK airport. It shows data only. It does not book or link to booking sites.
+<img src="frontend/public/favicon.svg" width="48" alt="Aero logo">
+
+Aero is a web app that compares one-way economy flights between one international airport and eight UK city groups, a week at a time, so you can pick the cheapest or most convenient UK airport. It shows data only. It does not book or link to booking sites.
 
 - **From UK**: every enabled UK city → one destination (e.g. → Karachi KHI)
 - **To UK**: one origin → every enabled UK city
@@ -49,8 +51,8 @@ Results fill in as they arrive. The status line shows progress ("Loading 23 of 7
 
 Provider modes:
 
+- `fast_flights` (default): fast-flights only.
 - `auto`: uses fast-flights. After 3 consecutive failures it switches to SerpApi for 30 minutes, if a key is set. When fast-flights finds no flights for some airports in a city on a given day, one SerpApi query re-checks just those airports. That costs 1 search per empty city-day, stays within the cap, and isn't repeated until the cache expires.
-- `fast_flights`: fast-flights only.
 - `serpapi`: SerpApi only.
 
 In SerpApi mode the other cities are filled by **overview** queries, which batch up to 7 airports per request (`SERPAPI_BATCH_MAX_AIRPORTS`). If SerpApi rejects a batch as too large, the batch size is halved and the lower size is remembered. The selected city gets a complete **detail** query per day. SerpApi accepted 8 airports in testing, so 7 is a conservative default. Overview results really are partial: in a 7-airport test, Luton was crowded out.
@@ -70,15 +72,36 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 | Variable | Default | |
 | --- | --- | --- |
 | `SERPAPI_API_KEY` | (empty) | Enables SerpApi |
-| `PROVIDER_MODE` | `auto` | `auto`, `fast_flights` or `serpapi` |
+| `PROVIDER_MODE` | `fast_flights` | `fast_flights`, `auto` or `serpapi` |
 | `CACHE_TTL_DAYS` | `2` | 1–5 |
 | `SERPAPI_MONTHLY_CAP` | `230` | Hard cap, never exceeded |
 | `SERPAPI_BATCH_MAX_AIRPORTS` | `7` | Max airports per overview query |
 | `FETCH_CONCURRENCY` | `2` | Parallel fetch workers |
 | `FETCH_DELAY_SECONDS` | `0.5-1` | Random delay between requests, in seconds (0.1–60). Doubles per consecutive fast-flights failure, up to 30 s. |
 | `GOOGLE_CONSENT_COOKIE` | `true` | Send Google consent cookies with fast-flights requests |
+| `ADMIN_PASSWORD` | (empty) | If set, changing settings or cities, Refresh all cache and Clear cache need this password. Leave empty for local use. |
 
 UK city groups and their airports are defined in [backend/config/uk_airports.json](backend/config/uk_airports.json), and its `"enabled"` values are the defaults. Turn cities on or off in ⚙ settings; that choice is saved in the database and overrides the JSON. Edit the JSON (and restart) only to add a city or change its airports. Liverpool and East Midlands are off by default.
+
+## Deploying (free)
+
+The repo includes a `Dockerfile` that builds the frontend and serves everything from FastAPI on `$PORT`. Any Docker host works. The easiest free option is **Render**:
+
+1. Push the repo to GitHub.
+2. In Render, choose **New → Blueprint** and pick the repo. It reads [render.yaml](render.yaml), which defines a free Docker web service.
+3. Set `ADMIN_PASSWORD` (pick a long one) and, optionally, `SERPAPI_API_KEY`. Both are secrets in the dashboard, never in git.
+4. Deploy. The site is at `https://aero-<something>.onrender.com`.
+
+What to expect on Render's free plan:
+
+- **Sleeping:** the service sleeps after 15 minutes without visitors, and the first visit after that takes about a minute to wake it.
+- **Wiped disk:** the disk is cleared on every restart or deploy, so the flight cache empties and refills on demand. Settings changed in the UI return to the environment variable defaults, so set `PROVIDER_MODE` and the rest there.
+- **SerpApi cap:** the usage counter is re-synced from SerpApi's free Account API at startup and every 30 minutes, so the monthly cap holds across wipes.
+- **Google may be stricter with cloud IPs:** fast-flights can hit Google's "unusual traffic" page more often than at home. The status line shows it when that happens. Switching to `auto` (admin only) lets SerpApi fill the gaps.
+
+**Admin mode:** with `ADMIN_PASSWORD` set, visitors can browse, search and use Refresh day/week. ⚙ settings are read-only for them until someone enters the password. The password is checked on the server, never stored in the page, and kept only in that browser tab's session.
+
+Run the image yourself with `docker build -t aero . && docker run -p 8000:8000 --env-file .env aero`.
 
 ## Development
 
@@ -101,7 +124,7 @@ backend/
   config/uk_airports.json
   tests/                 pytest suite; fixtures/ holds provider responses
 frontend/src/
-  components/            TopBar, CitySidebar, Heatmap, DayTabs, FlightTable, SettingsDialog
+  components/            TopBar, CitySidebar, Heatmap, DayTabs, FlightTable, SettingsDialog, Footer, Logo
   hooks/                 TanStack Query hooks, SSE subscription
   lib/                   API client, URL state, formatting
 data/                    SQLite database (git-ignored)

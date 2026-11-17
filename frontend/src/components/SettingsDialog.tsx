@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAllUkGroups, useSettings, useStatus } from "../hooks/queries";
-import { api } from "../lib/api";
+import { setAdminPassword, useAdminPassword } from "../lib/admin";
+import { api, ApiError } from "../lib/api";
 import type { AppSettings, ProviderMode } from "../lib/types";
 
 interface Props {
@@ -29,6 +30,86 @@ const MODES: { value: ProviderMode; label: string; help: string }[] = [
   { value: "serpapi", label: "SerpApi only", help: "Uses your SerpApi quota, never beyond the cap." },
 ];
 
+function LockIcon({ open = false }: { open?: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="inline-block shrink-0">
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d={open ? "M8 11V7a4 4 0 0 1 7.5-2" : "M8 11V7a4 4 0 0 1 8 0v4"} />
+    </svg>
+  );
+}
+
+function AdminUnlock({ unlocked }: { unlocked: boolean }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  if (unlocked) {
+    return (
+      <div className="flex items-center justify-between rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <span className="flex items-center gap-1.5">
+          <LockIcon open /> Admin mode: you can change settings.
+        </span>
+        <button type="button" className="text-xs underline" onClick={() => setAdminPassword(null)}>
+          Lock
+        </button>
+      </div>
+    );
+  }
+
+  const unlock = async () => {
+    setChecking(true);
+    setError(null);
+    try {
+      await api.adminCheck(password);
+      setAdminPassword(password);
+      setPassword("");
+    } catch (e) {
+      setError(e instanceof ApiError && e.status === 401 ? "Wrong password." : "Could not check the password.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md bg-slate-100 px-3 py-2 text-sm">
+      <p className="flex gap-1.5 text-slate-600">
+        <span className="mt-0.5">
+          <LockIcon />
+        </span>
+        Settings are shared by everyone using this site. Enter the admin password to change them.
+      </p>
+      <div className="mt-2 flex gap-2">
+        <input
+          type="password"
+          aria-label="Admin password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (password) void unlock();
+            }
+          }}
+          className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1"
+          placeholder="Admin password"
+        />
+        <button
+          type="button"
+          disabled={!password || checking}
+          onClick={() => void unlock()}
+          className="rounded bg-slate-800 px-3 py-1 text-white disabled:opacity-50"
+        >
+          {checking ? "Checking…" : "Unlock"}
+        </button>
+      </div>
+      {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
+    </div>
+  );
+}
+
 export function SettingsDialog({ open, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const qc = useQueryClient();
@@ -38,6 +119,9 @@ export function SettingsDialog({ open, onClose }: Props) {
   const [delayMs, setDelayMs] = useState<[number, number]>([500, 1000]);
   const { data: allGroups } = useAllUkGroups(open);
   const [enabledGroups, setEnabledGroups] = useState<Set<string>>(new Set());
+  const adminPassword = useAdminPassword();
+  const protectedSite = status?.admin_protected ?? false;
+  const locked = protectedSite && !adminPassword;
 
   useEffect(() => {
     const d = ref.current;
@@ -69,6 +153,9 @@ export function SettingsDialog({ open, onClose }: Props) {
         await api.setUkGroups(allGroups.filter((g) => enabledGroups.has(g.id)).map((g) => g.id));
       }
       return saved;
+    },
+    onError: (e) => {
+      if (e instanceof ApiError && e.status === 401) setAdminPassword(null);
     },
     onSuccess: (s) => {
       qc.setQueryData(["settings"], s);
@@ -111,6 +198,10 @@ export function SettingsDialog({ open, onClose }: Props) {
         >
           <h2 className="text-lg font-semibold">Settings</h2>
 
+          {protectedSite && <AdminUnlock unlocked={!locked} />}
+
+          <fieldset disabled={locked} className="space-y-5 disabled:opacity-60">
+
           <label className="block">
             <span className="text-sm font-medium">Cache expiry: {draft.ttl_days} day{draft.ttl_days > 1 ? "s" : ""}</span>
             <input
@@ -150,7 +241,7 @@ export function SettingsDialog({ open, onClose }: Props) {
             </div>
             {!serpapiAvailable && (
               <p className="mt-1 text-xs text-amber-700">
-                SerpApi is unavailable: set SERPAPI_API_KEY in .env and restart the server.
+                SerpApi is unavailable: set SERPAPI_API_KEY (in .env, or the host's environment variables) and restart the server.
               </p>
             )}
           </fieldset>
@@ -239,6 +330,8 @@ export function SettingsDialog({ open, onClose }: Props) {
             {groupsError && <p className="mt-1 text-xs text-rose-600">{groupsError}</p>}
           </fieldset>
 
+          </fieldset>
+
           {save.error && <p className="text-sm text-rose-600">Could not save: {save.error.message}</p>}
 
           <div className="flex justify-end gap-2">
@@ -247,7 +340,7 @@ export function SettingsDialog({ open, onClose }: Props) {
             </button>
             <button
               type="submit"
-              disabled={save.isPending || !!delayError || !!groupsError}
+              disabled={locked || save.isPending || !!delayError || !!groupsError}
               className="rounded bg-sky-600 px-3 py-1.5 text-sm text-white hover:bg-sky-700 disabled:opacity-50"
             >
               {save.isPending ? "Saving…" : "Save"}

@@ -50,13 +50,16 @@ class EnvSettings(BaseSettings):
     )
 
     serpapi_api_key: str = ""
-    provider_mode: str = "auto"
+    provider_mode: str = "fast_flights"
     cache_ttl_days: int = Field(default=2, ge=1, le=5)
     serpapi_monthly_cap: int = Field(default=230, ge=0)
     serpapi_batch_max_airports: int = Field(default=7, ge=1)
     fetch_concurrency: int = Field(default=2, ge=1, le=8)
     fetch_delay_seconds: str = "0.5-1"
     google_consent_cookie: bool = True
+    # When set, changing settings, cities or clearing the cache needs this password
+    # (X-Admin-Password header). Leave empty for local, single-user use.
+    admin_password: str = ""
     db_path: Path = DATA_DIR / "flights.db"
 
     @field_validator("fetch_delay_seconds")

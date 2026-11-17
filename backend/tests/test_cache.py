@@ -117,7 +117,7 @@ def test_get_many_filters(cache):
 
 def test_settings_seeded_from_env_and_persisted(settings):
     s = settings.get()
-    assert s.ttl_days == 2 and s.provider_mode is ProviderMode.AUTO
+    assert s.ttl_days == 2 and s.provider_mode is ProviderMode.FAST_FLIGHTS
     settings.save(s.model_copy(update={"ttl_days": 4}))
     assert settings.get().ttl_days == 4
 
@@ -126,3 +126,10 @@ def test_serpapi_cap_is_never_exceeded(usage):
     assert all(usage.try_reserve(3) for _ in range(3))
     assert usage.try_reserve(3) is False
     assert usage.used() == 3
+
+
+def test_remote_usage_sync_never_lowers_count(usage):
+    usage.try_reserve(230)
+    assert usage.sync_remote(40) == 40  # SerpApi knows of more searches (e.g. after a wipe)
+    assert usage.sync_remote(10) == 40  # never lowered
+    assert usage.try_reserve(41) is True and usage.try_reserve(41) is False

@@ -108,7 +108,7 @@ export function FlightPanel({ view, group, foreignLabel, day, sort, onDay, onSor
   const error = (isWeek ? weekQ.error : dayQ.error) as Error | null;
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
+    <section className="flex flex-col">
       <div className="px-4 pt-3">
         <h2 className="text-lg font-semibold">{routeTitle(view.direction, group.name, foreignLabel)}</h2>
       </div>
@@ -136,7 +136,7 @@ export function FlightPanel({ view, group, foreignLabel, day, sort, onDay, onSor
           )}
         </span>
       </div>
-      <div className="min-h-0 flex-1 px-4 pb-4">
+      <div className="px-4 pb-4">
         {error ? (
           <p className="p-6 text-sm text-rose-600">Failed to load flights: {error.message}</p>
         ) : flights.length > 0 ? (

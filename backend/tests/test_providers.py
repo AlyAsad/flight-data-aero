@@ -138,3 +138,18 @@ class TestLiveFixtures:
                 s.arrival_day_offset,
                 s.flight_numbers,
             )
+
+
+async def test_serpapi_account_usage():
+    import httpx
+
+    from app.providers.serpapi import SerpApiProvider
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/account.json"
+        return httpx.Response(200, json={"this_month_usage": 37, "plan_searches_left": 213})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    p = SerpApiProvider("key", reserve=lambda: True, client=client)
+    assert await p.account_usage() == 37
+    assert await SerpApiProvider("", reserve=lambda: True, client=client).account_usage() is None

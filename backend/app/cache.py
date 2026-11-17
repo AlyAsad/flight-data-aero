@@ -126,7 +126,7 @@ class SettingsStore:
         mode = self._env.provider_mode
         return AppSettings(
             ttl_days=self._env.cache_ttl_days,
-            provider_mode=ProviderMode(mode) if mode in ProviderMode else ProviderMode.AUTO,
+            provider_mode=ProviderMode(mode) if mode in ProviderMode else ProviderMode.FAST_FLIGHTS,
             serpapi_monthly_cap=min(self._env.serpapi_monthly_cap, 250),
             concurrency=self._env.fetch_concurrency,
             delay_seconds=self._env.fetch_delay_seconds,
@@ -179,6 +179,22 @@ class UsageStore:
                 "SELECT count FROM serpapi_usage WHERE month = ?", (self.month_key(now),)
             ).fetchone()
         return row["count"] if row else 0
+
+    def sync_remote(self, remote_used: int, now: datetime | None = None) -> int:
+        """Raise the local count to SerpApi's own figure if that is higher.
+
+        Free hosts wipe the local database on restart, so the authoritative
+        count from SerpApi's Account API keeps the cap enforced. Taking the max
+        never under-counts.
+        """
+        month = self.month_key(now)
+        with self._db.tx() as c:
+            c.execute(
+                "INSERT INTO serpapi_usage(month, count) VALUES(?, ?) "
+                "ON CONFLICT(month) DO UPDATE SET count = MAX(count, excluded.count)",
+                (month, remote_used),
+            )
+        return self.used(now)
 
     def try_reserve(self, cap: int, now: datetime | None = None) -> bool:
         """Count one search if doing so keeps usage within `cap`. Returns False otherwise."""

@@ -26,6 +26,7 @@ log = logging.getLogger(__name__)
 
 NAME = "serpapi"
 ENDPOINT = "https://serpapi.com/search.json"
+ACCOUNT_ENDPOINT = "https://serpapi.com/account.json"  # free, not counted as a search
 NO_RESULTS_MARKERS = ("hasn't returned any results", "no results")
 TOO_MANY_AIRPORTS = re.compile(r"(too many|maximum|at most|up to)\b.*\b(airport|location|id)", re.I)
 
@@ -172,6 +173,18 @@ class SerpApiProvider:
         if resp.status_code >= 400 and "error" not in data:
             raise ProviderError(f"SerpApi HTTP {resp.status_code}")
         return parse_response(data)
+
+    async def account_usage(self) -> int | None:
+        """Searches used this month according to SerpApi (None if unavailable)."""
+        if not self._api_key:
+            return None
+        try:
+            resp = await self._client.get(ACCOUNT_ENDPOINT, params={"api_key": self._api_key})
+            value = resp.json().get("this_month_usage")
+        except (httpx.HTTPError, ValueError) as exc:
+            log.warning("SerpApi account lookup failed: %s", exc)
+            return None
+        return value if isinstance(value, int) else None
 
     async def aclose(self) -> None:
         await self._client.aclose()

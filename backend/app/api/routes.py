@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
+import hmac
 from datetime import date as Date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
 from ..airports import Airport, search_airports
@@ -30,6 +32,27 @@ State = Annotated[AppState, Depends(get_state)]
 IATA = Annotated[str, Query(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")]
 
 
+FAILED_LOGIN_DELAY_SECONDS = 1.0  # slows down password guessing
+
+
+async def require_admin(
+    state: State, x_admin_password: Annotated[str | None, Header()] = None
+) -> None:
+    """Guard for shared settings. A no-op when ADMIN_PASSWORD is not configured."""
+    expected = state.env.admin_password
+    if not expected:
+        return
+    if x_admin_password and hmac.compare_digest(x_admin_password.encode(), expected.encode()):
+        return
+    await asyncio.sleep(FAILED_LOGIN_DELAY_SECONDS)
+    raise HTTPException(
+        401, "admin password required" if not x_admin_password else "wrong admin password"
+    )
+
+
+Admin = Depends(require_admin)
+
+
 def _group(state: AppState, group_id: str) -> UKGroup:
     group = next((g for g in state.groups if g.id == group_id), None)
     if group is None:
@@ -50,7 +73,7 @@ def uk_groups(state: State, include_disabled: bool = False) -> list[UKGroup]:
     return state.group_store.all() if include_disabled else list(state.groups)
 
 
-@router.put("/uk-groups")
+@router.put("/uk-groups", dependencies=[Admin])
 def set_uk_groups(state: State, body: UKGroupsUpdate) -> list[UKGroup]:
     """Enable exactly the given groups (all others are disabled)."""
     try:
@@ -146,12 +169,12 @@ def refresh(state: State, body: RefreshRequest) -> dict:
     return {"queued": n}
 
 
-@router.post("/cache/expire-all")
+@router.post("/cache/expire-all", dependencies=[Admin])
 def expire_all(state: State) -> dict:
     return {"expired": state.cache.expire_all()}
 
 
-@router.delete("/cache")
+@router.delete("/cache", dependencies=[Admin])
 def clear_cache(state: State) -> dict:
     state.fetcher.clear_queue()
     return {"deleted": state.cache.clear()}
@@ -160,12 +183,18 @@ def clear_cache(state: State) -> dict:
 # ---------------------------------------------------------------------- settings / status
 
 
+@router.post("/admin/check", dependencies=[Admin])
+def admin_check() -> dict:
+    """Lets the UI verify an admin password before unlocking settings."""
+    return {"ok": True}
+
+
 @router.get("/settings")
 def get_settings(state: State) -> AppSettings:
     return state.settings.get()
 
 
-@router.put("/settings")
+@router.put("/settings", dependencies=[Admin])
 def put_settings(state: State, body: SettingsUpdate) -> AppSettings:
     current = state.settings.get()
     updated = current.model_copy(update=body.model_dump(exclude_none=True))
@@ -185,6 +214,7 @@ def status(state: State) -> dict:
     settings = state.settings.get()
     p = state.providers
     return {
+        "admin_protected": bool(state.env.admin_password),
         "active_provider": p.peek_active_name(),
         "provider_mode": settings.provider_mode,
         "switch_reason": p.switch_reason(),

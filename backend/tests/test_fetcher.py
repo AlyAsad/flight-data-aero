@@ -135,6 +135,10 @@ class TestFastFlightsRun:
 
 
 class TestAutoSwitching:
+    @pytest.fixture(autouse=True)
+    def _auto_mode(self, settings):
+        set_mode(settings, ProviderMode.AUTO)
+
     async def test_switches_to_serpapi_after_three_failures(self, fetcher, ff, serp, providers):
         ff.fail = True
         fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
@@ -251,6 +255,10 @@ def test_set_groups_drops_pending_jobs(fetcher):
 
 
 class TestDoubleCheckEmpty:
+    @pytest.fixture(autouse=True)
+    def _auto_mode(self, settings):
+        set_mode(settings, ProviderMode.AUTO)
+
     async def test_auto_rechecks_empty_airports_with_serpapi(self, fetcher, ff, serp, cache):
         ff.empty_for = {"NCL", "STN"}
         fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
