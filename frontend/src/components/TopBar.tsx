@@ -11,7 +11,7 @@ interface Props {
   direction: Direction;
   foreign: string;
   center: string;
-  progress: QueueProgress | null;
+  progress: QueueProgress;
   status: Status | undefined;
   onDirection: (d: Direction) => void;
   onForeign: (iata: string) => void;
@@ -172,8 +172,8 @@ function RefreshMenu(
   );
 }
 
-function StatusLine({ progress, status }: { progress: QueueProgress | null; status?: Status }) {
-  const loading = progress && (progress.pending > 0 || progress.running > 0);
+function StatusLine({ progress, status }: { progress: QueueProgress; status?: Status }) {
+  const loading = progress.running > 0 || progress.done < progress.total;
   const ffError = status?.providers.fast_flights.last_error;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-4 text-xs text-slate-500" aria-live="polite">

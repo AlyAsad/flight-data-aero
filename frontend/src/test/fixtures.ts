@@ -60,6 +60,7 @@ export function week(groups: GroupWeek[], dates = ["2026-12-31"]): WeekSummary {
     center_date: dates[0]!,
     dates,
     groups,
+    jobs: [],
     pending_count: 0,
     min_price: prices.length ? Math.min(...prices) : null,
     max_price: prices.length ? Math.max(...prices) : null,

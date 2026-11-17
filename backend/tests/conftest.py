@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+import os
+import tempfile
+
+# app.main builds its app (and database) at import time, as Vercel requires.
+# Point that at a throwaway database so tests never touch data/flights.db or Turso.
+os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(prefix="aero-tests-"), "import.db")
+os.environ["TURSO_DATABASE_URL"] = ""
+
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
 from pydantic_settings import SettingsConfigDict
 
-from app.cache import Database, FlightCache, SettingsStore, UsageStore
+from app.cache import SCHEMA, ClaimStore, FlightCache, SettingsStore, UsageStore
 from app.config import EnvSettings
-from app.events import EventBus
+from app.db import Database, SqliteDatabase
 from app.fetcher import Fetcher, ProviderManager
 from app.models import FlightOption, UKGroup
 from app.providers.base import ProviderError, Segment, build_flight_option
@@ -95,9 +103,94 @@ def env(tmp_path) -> EnvSettings:
     return IsolatedEnv(db_path=tmp_path / "test.db", serpapi_api_key="")
 
 
-@pytest.fixture
-def db(env) -> Database:
-    database = Database(env.db_path)
+class FakeTurso:
+    """Speaks Turso's HTTP pipeline protocol, executing the SQL on an in-memory SQLite."""
+
+    def __init__(self):
+        import sqlite3
+
+        self.conn = sqlite3.connect(":memory:", check_same_thread=False)
+        self.requests = 0
+
+    @staticmethod
+    def _value(arg):
+        kind = arg["type"]
+        if kind == "null":
+            return None
+        if kind == "integer":
+            return int(arg["value"])
+        return arg["value"]
+
+    @staticmethod
+    def _cell(value):
+        if value is None:
+            return {"type": "null"}
+        if isinstance(value, int):
+            return {"type": "integer", "value": str(value)}
+        if isinstance(value, float):
+            return {"type": "float", "value": value}
+        return {"type": "text", "value": value}
+
+    def handler(self, request):
+        import json
+
+        import httpx
+
+        assert request.url.path == "/v2/pipeline"
+        assert request.headers["Authorization"] == "Bearer test-token"
+        self.requests += 1
+        results = []
+        for req in json.loads(request.content)["requests"]:
+            if req["type"] == "close":
+                results.append({"type": "ok", "response": {"type": "close"}})
+                continue
+            stmt = req["stmt"]
+            try:
+                cur = self.conn.execute(stmt["sql"], [self._value(a) for a in stmt["args"]])
+                self.conn.commit()
+            except Exception as exc:
+                results.append({"type": "error", "error": {"message": str(exc)}})
+                continue
+            cols = [{"name": d[0]} for d in cur.description or []]
+            rows = [[self._cell(v) for v in row] for row in cur.fetchall()] if cols else []
+            results.append(
+                {
+                    "type": "ok",
+                    "response": {
+                        "type": "execute",
+                        "result": {
+                            "cols": cols,
+                            "rows": rows,
+                            "affected_row_count": 0 if cols else max(cur.rowcount, 0),
+                        },
+                    },
+                }
+            )
+        return httpx.Response(200, json={"baton": None, "base_url": None, "results": results})
+
+
+def make_db(path, backend: str = "sqlite") -> Database:
+    if backend == "turso":
+        import httpx
+
+        from app.db import TursoDatabase
+
+        fake = FakeTurso()
+        database = TursoDatabase(
+            "libsql://aero-test.turso.io",
+            "test-token",
+            client=httpx.Client(transport=httpx.MockTransport(fake.handler)),
+        )
+    else:
+        database = SqliteDatabase(path)
+    database.execute_batch([(sql, ()) for sql in SCHEMA])
+    return database
+
+
+@pytest.fixture(params=["sqlite", "turso"])
+def db(env, request) -> Database:
+    """Every test using the database runs against both backends."""
+    database = make_db(env.db_path, request.param)
     yield database
     database.close()
 
@@ -118,8 +211,8 @@ def usage(db) -> UsageStore:
 
 
 @pytest.fixture
-def bus() -> EventBus:
-    return EventBus()
+def claims(db) -> ClaimStore:
+    return ClaimStore(db)
 
 
 @pytest.fixture
@@ -133,10 +226,10 @@ def serp() -> FakeSerpApi:
 
 
 @pytest.fixture
-def providers(ff, serp, settings, usage, bus) -> ProviderManager:
-    return ProviderManager(ff, serp, settings, usage, bus)
+def providers(ff, serp, settings, usage) -> ProviderManager:
+    return ProviderManager(ff, serp, settings, usage)
 
 
 @pytest.fixture
-def fetcher(cache, settings, providers, bus) -> Fetcher:
-    return Fetcher(cache, settings, providers, bus, GROUPS, default_batch_size=7, sleep=no_sleep)
+def fetcher(cache, settings, providers, claims) -> Fetcher:
+    return Fetcher(cache, settings, providers, claims, GROUPS, default_batch_size=7, sleep=no_sleep)

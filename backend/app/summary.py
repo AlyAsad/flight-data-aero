@@ -7,12 +7,12 @@ from datetime import date, datetime
 
 from .cache import CacheEntry, FlightCache, RouteKey, utcnow
 from .dates import is_not_on_sale, is_past, week_dates
-from .fetcher import JobKey
 from .models import (
     CacheMeta,
     Completeness,
     DayStatus,
     Direction,
+    FetchJob,
     FlightOption,
     GroupWeek,
     RouteDaySummary,
@@ -112,7 +112,7 @@ class SummaryBuilder:
         foreign: str,
         group: UKGroup,
         days: list[date],
-        queued: set[JobKey],
+        queued: set[tuple[str, date]],
         now: datetime | None = None,
     ) -> list[tuple[date, list[FlightOption], CacheMeta, bool]]:
         now = now or utcnow()
@@ -122,7 +122,7 @@ class SummaryBuilder:
             day_entries = [
                 entries.get(RouteKey(direction, a, foreign, day)) for a in group.airports
             ]
-            is_queued = JobKey(direction, foreign, group.id, day) in queued
+            is_queued = (group.id, day) in queued
             flights, meta = combine_entries(day_entries, day, now=now)
             out.append((day, flights, meta, is_queued))
         return out
@@ -133,10 +133,11 @@ class SummaryBuilder:
         foreign: str,
         center: date,
         groups: Sequence[UKGroup],
-        queued: set[JobKey],
+        jobs: list[FetchJob],
     ) -> WeekSummary:
         now = utcnow()
         days = week_dates(center)
+        queued = {(j.group, j.date) for j in jobs}
         group_weeks: list[GroupWeek] = []
         for group in groups:
             summaries = [
@@ -159,13 +160,14 @@ class SummaryBuilder:
         all_prices = [
             d.cheapest_price for g in group_weeks for d in g.days if d.cheapest_price is not None
         ]
-        pending = sum(1 for k in queued if k.direction is direction and k.foreign == foreign)
+        pending = len(jobs)
         return WeekSummary(
             direction=direction,
             foreign=foreign,
             center_date=center,
             dates=days,
             groups=group_weeks,
+            jobs=jobs,
             pending_count=pending,
             min_price=min(all_prices, default=None),
             max_price=max(all_prices, default=None),

@@ -39,6 +39,11 @@ CONSENT_COOKIES = {
     "CONSENT": "YES+",
 }
 RESULT_SECTIONS = (2, 3)  # best flights, other flights
+TEMPORARY_ERROR_RETRIES = 2  # extra attempts when Google answers with errorHasStatus
+
+
+class GoogleTemporaryError(ProviderError):
+    """Google answered with its transient error payload (`errorHasStatus: true`)."""
 
 
 def _dt(day: list[int], time: list[int | None] | None) -> datetime:
@@ -115,19 +120,22 @@ def parse_html(html: str) -> list[FlightOption]:
     js = script.text()
     try:
         data = js.split("data:", 1)[1].rsplit(",", 1)[0]
-        if data.endswith("errorHasStatus: true"):
-            return []  # Google's "no flights found" response
-        payload = json.loads(data)
+        payload = None if data.endswith("errorHasStatus: true") else json.loads(data)
     except (IndexError, ValueError) as exc:
         raise ProviderError(f"could not parse Google Flights page: {exc}") from exc
+    if payload is None:
+        # Not "no flights": routes with no flights return a normal, empty payload.
+        # Verified live: the same search alternates between this and full results.
+        raise GoogleTemporaryError("Google returned a temporary error for this search")
     return map_payload(payload)
 
 
 class FastFlightsProvider:
     name = NAME
 
-    def __init__(self, send_consent_cookie: bool = True):
+    def __init__(self, send_consent_cookie: bool = True, sleep=asyncio.sleep):
         self._send_consent_cookie = send_consent_cookie
+        self._sleep = sleep
 
     def _fetch_html(self, origin: str, destination: str, day: date) -> str:
         query = create_query(
@@ -153,10 +161,17 @@ class FastFlightsProvider:
         return res.text
 
     async def search_one_way(self, origin: str, destination: str, date: date) -> list[FlightOption]:
-        try:
-            html = await asyncio.to_thread(self._fetch_html, origin, destination, date)
-        except ProviderError:
-            raise
-        except Exception as exc:
-            raise ProviderError(f"fast-flights request failed: {exc}") from exc
-        return parse_html(html)
+        for attempt in range(TEMPORARY_ERROR_RETRIES + 1):
+            try:
+                html = await asyncio.to_thread(self._fetch_html, origin, destination, date)
+            except ProviderError:
+                raise
+            except Exception as exc:
+                raise ProviderError(f"fast-flights request failed: {exc}") from exc
+            try:
+                return parse_html(html)
+            except GoogleTemporaryError:
+                if attempt == TEMPORARY_ERROR_RETRIES:
+                    raise
+                await self._sleep(1 + attempt)
+        raise AssertionError("unreachable")

@@ -2,6 +2,8 @@ import type {
   Airport,
   AppSettings,
   Direction,
+  FetchJob,
+  FetchResult,
   FlightsResponse,
   Status,
   UKGroup,
@@ -77,13 +79,15 @@ export const api = {
     request<WeekFlightsResponse>(
       `/flights/week?${qs({ direction: v.direction, foreign: v.foreign, group, center_date: v.center })}`,
     ),
+  fetchJob: (job: FetchJob) =>
+    request<FetchResult>("/fetch", { method: "POST", body: JSON.stringify(job) }),
   refreshDay: (v: ViewParams, group: string, date: string) =>
-    request<{ queued: number }>("/refresh", {
+    request<{ jobs: FetchJob[] }>("/refresh", {
       method: "POST",
       body: JSON.stringify({ scope: "day", direction: v.direction, foreign: v.foreign, group, date }),
     }),
   refreshWeek: (v: ViewParams, group?: string, date?: string) =>
-    request<{ queued: number }>("/refresh", {
+    request<{ jobs: FetchJob[] }>("/refresh", {
       method: "POST",
       body: JSON.stringify({
         scope: "week",

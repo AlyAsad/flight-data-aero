@@ -69,12 +69,30 @@ export interface GroupWeek {
   status: DayStatus;
 }
 
+/** One group-day for the browser to fetch via /api/fetch. */
+export interface FetchJob {
+  direction: Direction;
+  foreign: string;
+  group: string;
+  date: string;
+  detail: boolean;
+  force: boolean;
+  route_days: number;
+}
+
+export interface FetchResult {
+  status: "done" | "error" | "skipped" | "busy";
+  error: string | null;
+  next_delay_seconds: number;
+}
+
 export interface WeekSummary {
   direction: Direction;
   foreign: string;
   center_date: string;
   dates: string[];
   groups: GroupWeek[];
+  jobs: FetchJob[];
   pending_count: number;
   min_price: number | null;
   max_price: number | null;
@@ -134,12 +152,12 @@ export interface Status {
   };
   serpapi_usage: { used: number; cap: number };
   serpapi_batch_max_airports: number;
-  queue: { pending: number; total: number; done: number };
+  database: "sqlite" | "turso";
 }
 
 export interface QueueProgress {
-  pending: number;
-  running: number;
-  total: number;
+  /** Route-days fetched / planned in the current view (one job covers 1+ route-days). */
   done: number;
+  total: number;
+  running: number;
 }

@@ -1,9 +1,9 @@
-# UK Multi-Airport Flight Finder
-BACKEND  := backend
+# Aero: run locally with `make install` then `make dev` (or `make start`).
 FRONTEND := frontend
 HOST     := 127.0.0.1
 # `env -u VIRTUAL_ENV` stops an unrelated activated venv from confusing uv.
-UV       := cd $(BACKEND) && env -u VIRTUAL_ENV uv
+UV       := env -u VIRTUAL_ENV uv
+UVICORN  := $(UV) run uvicorn app.main:app --app-dir backend --host $(HOST) --port 8000
 
 ifeq ($(shell command -v uv 2>/dev/null),)
 $(error uv not found on PATH. Install it with `curl -LsSf https://astral.sh/uv/install.sh | sh` , then open a new terminal)
@@ -29,7 +29,7 @@ dev: ## Run backend (:8000) and frontend dev server (:5173) with reload
 	wait
 
 backend: ## Run only the API server with reload
-	$(UV) run uvicorn app.main:app --host $(HOST) --port 8000 --reload
+	$(UVICORN) --reload --reload-dir backend
 
 frontend: ## Run only the Vite dev server
 	cd $(FRONTEND) && npm run dev -- --host $(HOST)
@@ -39,7 +39,7 @@ build: ## Build the frontend into frontend/dist
 
 start: build ## Build the frontend and serve everything from FastAPI on :8000
 	@( sleep 3; (xdg-open http://localhost:8000 || open http://localhost:8000 || true) >/dev/null 2>&1 ) &
-	$(UV) run uvicorn app.main:app --host $(HOST) --port 8000
+	$(UVICORN)
 
 test: test-backend test-frontend ## Run all tests
 
@@ -50,16 +50,16 @@ test-frontend: ## Run Vitest
 	cd $(FRONTEND) && npm test -- --run
 
 lint: ## Lint backend (ruff) and frontend (tsc + eslint)
-	$(UV) run ruff check .
-	$(UV) run ruff format --check .
+	$(UV) run ruff check backend
+	$(UV) run ruff format --check backend
 	cd $(FRONTEND) && npm run lint
 
 format: ## Auto-format backend code
-	$(UV) run ruff format .
-	$(UV) run ruff check --fix .
+	$(UV) run ruff format backend
+	$(UV) run ruff check --fix backend
 
 smoke: ## One live NCL→KHI search per provider (ARGS=--record saves responses)
-	$(UV) run python -m scripts.smoke $(ARGS)
+	cd backend && $(UV) run python -m scripts.smoke $(ARGS)
 
 clean: ## Remove build artefacts and caches (keeps data/)
-	rm -rf $(FRONTEND)/dist $(BACKEND)/.pytest_cache $(BACKEND)/.ruff_cache
+	rm -rf $(FRONTEND)/dist .pytest_cache .ruff_cache

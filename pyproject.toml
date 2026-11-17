@@ -1,7 +1,7 @@
 [project]
-name = "flight-finder"
+name = "aero"
 version = "0.1.0"
-description = "UK multi-airport flight finder (local)"
+description = "Aero: compare one-way flights between one airport and every major UK city"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115",
@@ -10,8 +10,8 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
     "airportsdata>=20240316",
-    "sse-starlette>=2.1",
     "fast-flights==3.1.0",
+    "typing-extensions>=4.7",  # used by fast-flights 3.1.0 but not declared by it
 ]
 
 [dependency-groups]
@@ -19,6 +19,7 @@ dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
 
 [tool.ruff]
 line-length = 100
+src = ["backend"]
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -26,4 +27,10 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
+
+# Vercel: the FastAPI app serves the API and the built frontend (see vercel.json).
+[tool.vercel]
+entrypoint = "backend.app.main:app"

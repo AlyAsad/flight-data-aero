@@ -1,21 +1,30 @@
-"""REST + SSE endpoints under /api."""
+"""REST endpoints under /api.
+
+Fetching is driven by the browser: `/week` returns the summary plus the jobs
+still needed, and the browser calls `/fetch` for each. Every request is short,
+so the same API works locally and on serverless hosts.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import hmac
 from datetime import date as Date
+from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
-from sse_starlette.sse import EventSourceResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from ..airports import Airport, search_airports
+from ..cache import utcnow
+from ..config import USAGE_SYNC_MINUTES
 from ..dates import week_dates
 from ..models import (
     AppSettings,
     DayFlights,
     Direction,
+    FetchJob,
+    FetchResult,
     FlightsResponse,
     RefreshRequest,
     SettingsUpdate,
@@ -31,8 +40,8 @@ router = APIRouter(prefix="/api")
 State = Annotated[AppState, Depends(get_state)]
 IATA = Annotated[str, Query(min_length=3, max_length=3, pattern=r"^[A-Za-z]{3}$")]
 
-
 FAILED_LOGIN_DELAY_SECONDS = 1.0  # slows down password guessing
+USAGE_SYNCED_AT_KEY = "serpapi_usage_synced_at"
 
 
 async def require_admin(
@@ -60,6 +69,22 @@ def _group(state: AppState, group_id: str) -> UKGroup:
     return group
 
 
+async def _maybe_sync_serpapi_usage(state: AppState) -> None:
+    """Raise the local SerpApi counter to SerpApi's own figure, at most every 30 minutes.
+
+    The Account API call is free (not counted as a search).
+    """
+    if not state.providers.serpapi.available:
+        return
+    raw = state.settings.get_value(USAGE_SYNCED_AT_KEY)
+    if raw and utcnow() - datetime.fromisoformat(raw) < timedelta(minutes=USAGE_SYNC_MINUTES):
+        return
+    state.settings.set_value(USAGE_SYNCED_AT_KEY, utcnow().isoformat())
+    remote = await state.providers.serpapi.account_usage()
+    if remote is not None:
+        state.usage.sync_remote(remote)
+
+
 # ---------------------------------------------------------------------- lookups
 
 
@@ -77,11 +102,9 @@ def uk_groups(state: State, include_disabled: bool = False) -> list[UKGroup]:
 def set_uk_groups(state: State, body: UKGroupsUpdate) -> list[UKGroup]:
     """Enable exactly the given groups (all others are disabled)."""
     try:
-        groups = state.group_store.set_enabled(body.enabled)
+        return state.group_store.set_enabled(body.enabled)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    state.fetcher.set_groups(state.groups)
-    return groups
 
 
 # ---------------------------------------------------------------------- flights
@@ -96,13 +119,21 @@ def week(
     selected_group: str | None = None,
     selected_date: Date | None = None,
 ) -> WeekSummary:
+    """Week summary from the cache, plus the jobs the browser should fetch next."""
     foreign = foreign.upper()
     if selected_group is not None:
         _group(state, selected_group)
-    state.fetcher.plan_view(direction, foreign, center_date, selected_group, selected_date)
-    return state.summaries.week(
-        direction, foreign, center_date, state.groups, state.fetcher.queued_keys()
-    )
+    jobs = state.fetcher.plan(direction, foreign, center_date, selected_group, selected_date)
+    return state.summaries.week(direction, foreign, center_date, state.groups, jobs)
+
+
+@router.post("/fetch")
+async def fetch(state: State, job: FetchJob) -> FetchResult:
+    """Fetch one group-day (a few seconds). Already-cached work is skipped."""
+    job = job.model_copy(update={"foreign": job.foreign.upper()})
+    if state.providers.serpapi.available:
+        await _maybe_sync_serpapi_usage(state)
+    return await state.fetcher.run(job)
 
 
 @router.get("/flights")
@@ -111,9 +142,7 @@ def flights(
 ) -> FlightsResponse:
     foreign = foreign.upper()
     g = _group(state, group)
-    [(day, items, meta, _)] = state.summaries.group_days(
-        direction, foreign, g, [date], state.fetcher.queued_keys()
-    )
+    [(day, items, meta, _)] = state.summaries.group_days(direction, foreign, g, [date], set())
     return FlightsResponse(
         direction=direction, foreign=foreign, group=group, date=day, flights=items, meta=meta
     )
@@ -125,9 +154,7 @@ def flights_week(
 ) -> WeekFlightsResponse:
     foreign = foreign.upper()
     g = _group(state, group)
-    rows = state.summaries.group_days(
-        direction, foreign, g, week_dates(center_date), state.fetcher.queued_keys()
-    )
+    rows = state.summaries.group_days(direction, foreign, g, week_dates(center_date), set())
     return WeekFlightsResponse(
         direction=direction,
         foreign=foreign,
@@ -137,36 +164,32 @@ def flights_week(
     )
 
 
-@router.get("/events")
-async def events(request: Request, state: State) -> EventSourceResponse:
-    async def stream():
-        async for event, data in state.bus.subscribe():
-            if await request.is_disconnected():
-                break
-            yield {"event": event, "data": data}
-
-    return EventSourceResponse(stream(), ping=15)
-
-
 # ---------------------------------------------------------------------- refresh / cache
 
 
 @router.post("/refresh")
-def refresh(state: State, body: RefreshRequest) -> dict:
+def refresh(state: State, body: RefreshRequest) -> dict[str, list[FetchJob]]:
+    """Jobs that re-fetch a day or the whole view; the browser runs them via /fetch."""
     foreign = body.foreign.upper()
     if body.scope == "day":
         if not body.group or not body.date:
             raise HTTPException(422, "scope=day requires group and date")
-        queued = state.fetcher.refresh_day(
-            body.direction, foreign, _group(state, body.group), body.date
+        _group(state, body.group)
+        job = FetchJob(
+            direction=body.direction,
+            foreign=foreign,
+            group=body.group,
+            date=body.date,
+            detail=True,
+            force=True,
         )
-        return {"queued": int(queued)}
+        return {"jobs": [job]}
     if not body.center_date:
         raise HTTPException(422, "scope=week requires center_date")
-    n = state.fetcher.plan_view(
+    jobs = state.fetcher.plan(
         body.direction, foreign, body.center_date, body.group, body.date, force=True
     )
-    return {"queued": n}
+    return {"jobs": jobs}
 
 
 @router.post("/cache/expire-all", dependencies=[Admin])
@@ -176,7 +199,6 @@ def expire_all(state: State) -> dict:
 
 @router.delete("/cache", dependencies=[Admin])
 def clear_cache(state: State) -> dict:
-    state.fetcher.clear_queue()
     return {"deleted": state.cache.clear()}
 
 
@@ -200,17 +222,17 @@ def put_settings(state: State, body: SettingsUpdate) -> AppSettings:
     updated = current.model_copy(update=body.model_dump(exclude_none=True))
     updated = AppSettings.model_validate(updated.model_dump())
     state.settings.save(updated)
-    if updated.concurrency != current.concurrency:
-        state.fetcher.set_concurrency(updated.concurrency)
     if updated.provider_mode != current.provider_mode:
         state.providers.reset()
     return updated
 
 
 @router.get("/status")
-def status(state: State) -> dict:
+async def status(state: State) -> dict:
+    await _maybe_sync_serpapi_usage(state)
     settings = state.settings.get()
     p = state.providers
+    last_error = p.last_error
     return {
         "admin_protected": bool(state.env.admin_password),
         "active_provider": p.peek_active_name(),
@@ -221,18 +243,14 @@ def status(state: State) -> dict:
             "fast_flights": {
                 "available": True,
                 "consecutive_failures": p.consecutive_ff_failures,
-                "last_error": p.last_error.get("fast_flights"),
+                "last_error": last_error.get("fast_flights"),
             },
             "serpapi": {
                 "available": p.serpapi.available,
-                "last_error": p.last_error.get("serpapi"),
+                "last_error": last_error.get("serpapi"),
             },
         },
         "serpapi_usage": {"used": state.usage.used(), "cap": settings.serpapi_monthly_cap},
         "serpapi_batch_max_airports": state.fetcher.batch_size,
-        "queue": {
-            "pending": state.fetcher.queue_size,
-            "total": state.fetcher.progress.total,
-            "done": min(state.fetcher.progress.done, state.fetcher.progress.total),
-        },
+        "database": "turso" if state.env.turso_database_url else "sqlite",
     }

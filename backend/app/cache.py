@@ -1,18 +1,21 @@
-"""SQLite persistence: route-day cache entries, user settings and SerpApi usage."""
+"""Persistence: route-day cache entries, settings, SerpApi usage and fetch claims.
+
+Works on any `db.Database` backend (a local SQLite file, or Turso when deployed).
+Every operation is a single statement or batch, because on serverless hosts
+many short-lived instances can share one database.
+"""
 
 from __future__ import annotations
 
-import sqlite3
-import threading
-from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from pathlib import Path
+from typing import Any
 
 from pydantic import TypeAdapter
 
 from .config import ERROR_CACHE_MINUTES, EnvSettings
+from .db import Database, SqliteDatabase, TursoDatabase
 from .models import (
     AppSettings,
     Completeness,
@@ -24,31 +27,40 @@ from .models import (
 
 _flights_adapter = TypeAdapter(list[FlightOption])
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS route_days (
-    direction       TEXT NOT NULL,
-    uk_airport      TEXT NOT NULL,
-    foreign_airport TEXT NOT NULL,
-    date            TEXT NOT NULL,
-    status          TEXT NOT NULL,
-    completeness    TEXT NOT NULL,
-    provider        TEXT NOT NULL,
-    flights_json    TEXT NOT NULL,
-    fetched_at      TEXT NOT NULL,
-    expires_at      TEXT NOT NULL,
-    error_message   TEXT,
-    retry_after     TEXT,
-    PRIMARY KEY (direction, uk_airport, foreign_airport, date)
-);
-CREATE TABLE IF NOT EXISTS settings (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS serpapi_usage (
-    month TEXT PRIMARY KEY,
-    count INTEGER NOT NULL
-);
-"""
+SCHEMA = [
+    """CREATE TABLE IF NOT EXISTS route_days (
+        direction       TEXT NOT NULL,
+        uk_airport      TEXT NOT NULL,
+        foreign_airport TEXT NOT NULL,
+        date            TEXT NOT NULL,
+        status          TEXT NOT NULL,
+        completeness    TEXT NOT NULL,
+        provider        TEXT NOT NULL,
+        flights_json    TEXT NOT NULL,
+        fetched_at      TEXT NOT NULL,
+        expires_at      TEXT NOT NULL,
+        error_message   TEXT,
+        retry_after     TEXT,
+        PRIMARY KEY (direction, uk_airport, foreign_airport, date)
+    )""",
+    "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS serpapi_usage (month TEXT PRIMARY KEY, count INTEGER NOT NULL)",
+    # A short-lived lock per group-day, so two visitors don't fetch the same thing at once.
+    "CREATE TABLE IF NOT EXISTS claims (key TEXT PRIMARY KEY, until TEXT NOT NULL)",
+]
+
+APPLIED_TTL_KEY = "applied_ttl_days"
+
+
+def open_database(env: EnvSettings) -> Database:
+    """Turso when TURSO_DATABASE_URL is set, otherwise the local SQLite file."""
+    db: Database
+    if env.turso_database_url:
+        db = TursoDatabase(env.turso_database_url, env.turso_auth_token)
+    else:
+        db = SqliteDatabase(env.db_path)
+    db.execute_batch([(sql, ()) for sql in SCHEMA])
+    return db
 
 
 def utcnow() -> datetime:
@@ -94,44 +106,8 @@ class CacheEntry:
         return self.status in (EntryStatus.OK, EntryStatus.EMPTY)
 
 
-class Database:
-    """Thin thread-safe wrapper around a single SQLite connection."""
-
-    def __init__(self, path: Path | str):
-        if str(path) != ":memory:":
-            Path(path).parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(path), check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._lock = threading.RLock()
-        with self.tx() as c:
-            c.executescript(SCHEMA)
-
-    @contextmanager
-    def tx(self) -> Iterator[sqlite3.Connection]:
-        with self._lock, self._conn:
-            yield self._conn
-
-    @property
-    def total_changes(self) -> int:
-        """Rows changed since the connection opened (cheap "is there anything new?" check)."""
-        with self._lock:
-            return self._conn.total_changes
-
-    def backup_to(self, path: Path) -> None:
-        """Write a consistent copy of the database to `path` (SQLite online backup)."""
-        dest = sqlite3.connect(str(path))
-        try:
-            with self._lock:
-                self._conn.backup(dest)
-        finally:
-            dest.close()
-
-    def close(self) -> None:
-        self._conn.close()
-
-
 class SettingsStore:
-    """User settings persisted in SQLite; `.env` values seed the first run."""
+    """Settings persisted in the database; `.env` values seed the first run."""
 
     def __init__(self, db: Database, env: EnvSettings):
         self._db = db
@@ -148,36 +124,28 @@ class SettingsStore:
         )
 
     def get(self) -> AppSettings:
-        with self._db.tx() as c:
-            row = c.execute("SELECT value FROM settings WHERE key = 'app'").fetchone()
-        if row is None:
+        raw = self.get_value("app")
+        if raw is None:
             settings = self._defaults()
             self.save(settings)
             return settings
         # Cache expiry is server configuration (CACHE_TTL_DAYS), never user-editable.
-        stored = AppSettings.model_validate_json(row["value"])
+        stored = AppSettings.model_validate_json(raw)
         return stored.model_copy(update={"ttl_days": self._env.cache_ttl_days})
 
     def save(self, settings: AppSettings) -> None:
-        with self._db.tx() as c:
-            c.execute(
-                "INSERT INTO settings(key, value) VALUES('app', ?) "
-                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (settings.model_dump_json(),),
-            )
+        self.set_value("app", settings.model_dump_json())
 
     def get_value(self, key: str) -> str | None:
-        with self._db.tx() as c:
-            row = c.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
-        return row["value"] if row else None
+        rows = self._db.query("SELECT value FROM settings WHERE key = ?", (key,))
+        return rows[0]["value"] if rows else None
 
     def set_value(self, key: str, value: str) -> None:
-        with self._db.tx() as c:
-            c.execute(
-                "INSERT INTO settings(key, value) VALUES(?, ?) "
-                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (key, value),
-            )
+        self._db.execute(
+            "INSERT INTO settings(key, value) VALUES(?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
 
 
 class UsageStore:
@@ -191,42 +159,52 @@ class UsageStore:
         return (now or utcnow()).strftime("%Y-%m")
 
     def used(self, now: datetime | None = None) -> int:
-        with self._db.tx() as c:
-            row = c.execute(
-                "SELECT count FROM serpapi_usage WHERE month = ?", (self.month_key(now),)
-            ).fetchone()
-        return row["count"] if row else 0
+        rows = self._db.query(
+            "SELECT count FROM serpapi_usage WHERE month = ?", (self.month_key(now),)
+        )
+        return int(rows[0]["count"]) if rows else 0
 
     def sync_remote(self, remote_used: int, now: datetime | None = None) -> int:
-        """Raise the local count to SerpApi's own figure if that is higher.
-
-        Free hosts wipe the local database on restart, so the authoritative
-        count from SerpApi's Account API keeps the cap enforced. Taking the max
-        never under-counts.
-        """
-        month = self.month_key(now)
-        with self._db.tx() as c:
-            c.execute(
-                "INSERT INTO serpapi_usage(month, count) VALUES(?, ?) "
-                "ON CONFLICT(month) DO UPDATE SET count = MAX(count, excluded.count)",
-                (month, remote_used),
-            )
+        """Raise the local count to SerpApi's own figure if that is higher (never lowers it)."""
+        self._db.execute(
+            "INSERT INTO serpapi_usage(month, count) VALUES(?, ?) "
+            "ON CONFLICT(month) DO UPDATE SET count = MAX(count, excluded.count)",
+            (self.month_key(now), remote_used),
+        )
         return self.used(now)
 
     def try_reserve(self, cap: int, now: datetime | None = None) -> bool:
-        """Count one search if doing so keeps usage within `cap`. Returns False otherwise."""
-        month = self.month_key(now)
-        with self._db.tx() as c:
-            row = c.execute("SELECT count FROM serpapi_usage WHERE month = ?", (month,)).fetchone()
-            used = row["count"] if row else 0
-            if used >= cap:
-                return False
-            c.execute(
-                "INSERT INTO serpapi_usage(month, count) VALUES(?, 1) "
-                "ON CONFLICT(month) DO UPDATE SET count = count + 1",
-                (month,),
-            )
-            return True
+        """Count one search if doing so keeps usage within `cap`. Returns False otherwise.
+
+        One statement, so concurrent instances can't both take the last search.
+        """
+        if cap <= 0:
+            return False
+        changed = self._db.execute(
+            "INSERT INTO serpapi_usage(month, count) VALUES(?, 1) "
+            "ON CONFLICT(month) DO UPDATE SET count = count + 1 WHERE serpapi_usage.count < ?",
+            (self.month_key(now), cap),
+        )
+        return changed > 0
+
+
+class ClaimStore:
+    """Short-lived locks so only one request fetches a given group-day at a time."""
+
+    def __init__(self, db: Database):
+        self._db = db
+
+    def claim(self, key: str, seconds: float, now: datetime | None = None) -> bool:
+        now = now or utcnow()
+        changed = self._db.execute(
+            "INSERT INTO claims(key, until) VALUES(?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET until = excluded.until WHERE claims.until < ?",
+            (key, _ts(now + timedelta(seconds=seconds)), _ts(now)),
+        )
+        return changed > 0
+
+    def release(self, key: str) -> None:
+        self._db.execute("DELETE FROM claims WHERE key = ?", (key,))
 
 
 class FlightCache:
@@ -238,7 +216,7 @@ class FlightCache:
     # ------------------------------------------------------------------ reads
 
     @staticmethod
-    def _row_to_entry(row: sqlite3.Row) -> CacheEntry:
+    def _row_to_entry(row: dict[str, Any]) -> CacheEntry:
         fetched_at = datetime.fromisoformat(row["fetched_at"])
         flights = _flights_adapter.validate_json(row["flights_json"])
         for f in flights:
@@ -261,13 +239,12 @@ class FlightCache:
         )
 
     def get(self, key: RouteKey) -> CacheEntry | None:
-        with self._db.tx() as c:
-            row = c.execute(
-                "SELECT * FROM route_days WHERE direction = ? AND uk_airport = ? "
-                "AND foreign_airport = ? AND date = ?",
-                (key.direction.value, key.uk_airport, key.foreign_airport, key.date.isoformat()),
-            ).fetchone()
-        return self._row_to_entry(row) if row else None
+        rows = self._db.query(
+            "SELECT * FROM route_days WHERE direction = ? AND uk_airport = ? "
+            "AND foreign_airport = ? AND date = ?",
+            (key.direction.value, key.uk_airport, key.foreign_airport, key.date.isoformat()),
+        )
+        return self._row_to_entry(rows[0]) if rows else None
 
     def get_many(
         self, direction: Direction, foreign: str, uk_airports: Iterable[str], dates: Iterable[date]
@@ -280,8 +257,7 @@ class FlightCache:
             f"AND uk_airport IN ({','.join('?' * len(airports))}) "
             f"AND date IN ({','.join('?' * len(days))})"
         )
-        with self._db.tx() as c:
-            rows = c.execute(sql, (direction.value, foreign, *airports, *days)).fetchall()
+        rows = self._db.query(sql, (direction.value, foreign, *airports, *days))
         entries = (self._row_to_entry(r) for r in rows)
         return {e.key: e for e in entries}
 
@@ -315,22 +291,21 @@ class FlightCache:
         payload = _flights_adapter.dump_json(
             [f.model_copy(update={"fetched_at": None}) for f in flights]
         ).decode()
-        with self._db.tx() as c:
-            c.execute(
-                "INSERT OR REPLACE INTO route_days VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL)",
-                (
-                    key.direction.value,
-                    key.uk_airport,
-                    key.foreign_airport,
-                    key.date.isoformat(),
-                    status.value,
-                    completeness.value,
-                    provider,
-                    payload,
-                    _ts(now),
-                    _ts(now + timedelta(days=ttl_days)),
-                ),
-            )
+        self._db.execute(
+            "INSERT OR REPLACE INTO route_days VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL)",
+            (
+                key.direction.value,
+                key.uk_airport,
+                key.foreign_airport,
+                key.date.isoformat(),
+                status.value,
+                completeness.value,
+                provider,
+                payload,
+                _ts(now),
+                _ts(now + timedelta(days=ttl_days)),
+            ),
+        )
         return True
 
     def store_error(
@@ -343,62 +318,62 @@ class FlightCache:
         """
         now = now or utcnow()
         retry = now + timedelta(minutes=ERROR_CACHE_MINUTES)
+        where = (key.direction.value, key.uk_airport, key.foreign_airport, key.date.isoformat())
         existing = self.get(key)
-        with self._db.tx() as c:
-            if existing is not None and existing.has_data:
-                c.execute(
-                    "UPDATE route_days SET error_message = ?, retry_after = ? "
-                    "WHERE direction = ? AND uk_airport = ? AND foreign_airport = ? AND date = ?",
-                    (
-                        message,
-                        _ts(retry),
-                        key.direction.value,
-                        key.uk_airport,
-                        key.foreign_airport,
-                        key.date.isoformat(),
-                    ),
-                )
-            else:
-                c.execute(
-                    "INSERT OR REPLACE INTO route_days VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (
-                        key.direction.value,
-                        key.uk_airport,
-                        key.foreign_airport,
-                        key.date.isoformat(),
-                        EntryStatus.ERROR.value,
-                        Completeness.FULL.value,
-                        provider,
-                        "[]",
-                        _ts(now),
-                        _ts(retry),
-                        message,
-                        _ts(retry),
-                    ),
-                )
+        if existing is not None and existing.has_data:
+            self._db.execute(
+                "UPDATE route_days SET error_message = ?, retry_after = ? "
+                "WHERE direction = ? AND uk_airport = ? AND foreign_airport = ? AND date = ?",
+                (message, _ts(retry), *where),
+            )
+        else:
+            self._db.execute(
+                "INSERT OR REPLACE INTO route_days VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    *where,
+                    EntryStatus.ERROR.value,
+                    Completeness.FULL.value,
+                    provider,
+                    "[]",
+                    _ts(now),
+                    _ts(retry),
+                    message,
+                    _ts(retry),
+                ),
+            )
 
     def recompute_expiry(self, ttl_days: int) -> None:
         """Apply a new TTL to all successful entries, based on their fetched_at."""
-        with self._db.tx() as c:
-            rows = c.execute(
-                "SELECT rowid, fetched_at FROM route_days WHERE status != ?",
-                (EntryStatus.ERROR.value,),
-            ).fetchall()
-            c.executemany(
-                "UPDATE route_days SET expires_at = ? WHERE rowid = ?",
-                [
-                    (_ts(datetime.fromisoformat(r["fetched_at"]) + timedelta(days=ttl_days)), r[0])
-                    for r in rows
-                ],
-            )
+        rows = self._db.query(
+            "SELECT rowid AS rid, fetched_at FROM route_days WHERE status != ?",
+            (EntryStatus.ERROR.value,),
+        )
+        self._db.execute_batch(
+            [
+                (
+                    "UPDATE route_days SET expires_at = ? WHERE rowid = ?",
+                    (
+                        _ts(datetime.fromisoformat(r["fetched_at"]) + timedelta(days=ttl_days)),
+                        r["rid"],
+                    ),
+                )
+                for r in rows
+            ]
+        )
+
+    def apply_ttl_if_changed(self, ttl_days: int, settings: SettingsStore) -> bool:
+        """Re-apply CACHE_TTL_DAYS to stored entries, only when it changed since last time."""
+        if settings.get_value(APPLIED_TTL_KEY) == str(ttl_days):
+            return False
+        self.recompute_expiry(ttl_days)
+        settings.set_value(APPLIED_TTL_KEY, str(ttl_days))
+        return True
 
     def expire_all(self, now: datetime | None = None) -> int:
         """Mark every entry expired (data is kept and shown as stale)."""
-        now_s = _ts(now or utcnow())
-        with self._db.tx() as c:
-            cur = c.execute("UPDATE route_days SET expires_at = ?, retry_after = NULL", (now_s,))
-            return cur.rowcount
+        return self._db.execute(
+            "UPDATE route_days SET expires_at = ?, retry_after = NULL", (_ts(now or utcnow()),)
+        )
 
     def clear(self) -> int:
-        with self._db.tx() as c:
-            return c.execute("DELETE FROM route_days").rowcount
+        return self._db.execute("DELETE FROM route_days")

@@ -153,3 +153,42 @@ async def test_serpapi_account_usage():
     p = SerpApiProvider("key", reserve=lambda: True, client=client)
     assert await p.account_usage() == 37
     assert await SerpApiProvider("", reserve=lambda: True, client=client).account_usage() is None
+
+
+def _error_payload_html() -> str:
+    # Google's transient error: the data section ends with "errorHasStatus: true".
+    script = (
+        "AF_initDataCallback({key: 'ds:1', hash: '1', data:null, errorHasStatus: true, x: {}});"
+    )
+    return f'<html><body><script class="ds:1">{script}</script></body></html>'
+
+
+def test_error_payload_is_a_temporary_error_not_no_flights():
+    from app.providers.fast_flights import GoogleTemporaryError
+
+    with pytest.raises(GoogleTemporaryError):
+        parse_html(_error_payload_html())
+
+
+async def test_fast_flights_retries_temporary_errors():
+    from app.providers.fast_flights import FastFlightsProvider, GoogleTemporaryError
+
+    good = (FIXTURES / "fast_flights_ncl_khi_live.html").read_text()
+    sleeps: list[float] = []
+
+    async def fake_sleep(s):
+        sleeps.append(s)
+
+    def provider(pages):
+        p = FastFlightsProvider(sleep=fake_sleep)
+        it = iter(pages)
+        p._fetch_html = lambda *a: next(it)
+        return p
+
+    flights = await provider([_error_payload_html(), _error_payload_html(), good]).search_one_way(
+        "NCL", "KHI", None
+    )
+    assert len(flights) == 9 and sleeps == [1, 2]
+
+    with pytest.raises(GoogleTemporaryError):
+        await provider([_error_payload_html()] * 3).search_one_way("NCL", "KHI", None)

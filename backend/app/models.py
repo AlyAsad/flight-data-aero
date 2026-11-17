@@ -120,12 +120,31 @@ class GroupWeek(BaseModel):
     status: DayStatus
 
 
+class FetchJob(BaseModel):
+    """One group-day to fetch. Returned by /week, sent back to /fetch by the browser."""
+
+    direction: Direction
+    foreign: str = Field(min_length=3, max_length=3)
+    group: str
+    date: Date
+    detail: bool = False  # selected city: needs complete (non-overview) data
+    force: bool = False  # refresh: re-fetch even if cached (older than ~2 minutes)
+    route_days: int = 1  # airports still needing data (for progress display)
+
+
+class FetchResult(BaseModel):
+    status: Literal["done", "error", "skipped", "busy"]
+    error: str | None = None
+    next_delay_seconds: float  # how long the browser should wait before its next fetch
+
+
 class WeekSummary(BaseModel):
     direction: Direction
     foreign: str
     center_date: Date
     dates: list[Date]
     groups: list[GroupWeek]
+    jobs: list[FetchJob]  # still to fetch, highest priority first
     pending_count: int
     min_price: float | None = None
     max_price: float | None = None

@@ -9,6 +9,13 @@ Aero is a web app that compares one-way economy flights between one internationa
 
 See [spec.md](spec.md) for the full specification.
 
+## Live site
+
+<!-- After deploying, replace the line below with your Vercel URL, e.g. **[aero.vercel.app](https://aero.vercel.app)** -->
+**Live:** _not deployed yet_
+
+Or run it on your own computer (below). Both work the same way.
+
 ## Quick start
 
 Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 20+. Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`. Use the standalone installer rather than `pip install uv` under pyenv, because pyenv shims can clash with uv.
@@ -30,7 +37,7 @@ Run `make help` to list every target.
 3. The **sidebar** shows each city's cheapest fare that week. The **heatmap** shows the cheapest fare per city per day (green is cheap, red is expensive).
 4. Click a city or cell to load its **day tabs** and **flight list**. Click any column header to sort. Click a row to see layovers, flight numbers, aircraft, baggage and provider.
 
-Results fill in as they arrive. The status line shows progress ("Loading 23 of 77"), the active provider and any warnings. Hover a cell or tab to see when its data was fetched.
+Results fill in as they arrive: the page asks the server for each missing city-day in turn (a few at a time) and refreshes as they land. The status line shows progress ("Loading 23 of 77"), the active provider and any warnings. Hover a cell or tab to see when its data was fetched.
 
 | Marker | Meaning |
 | --- | --- |
@@ -57,17 +64,18 @@ Provider modes:
 
 In SerpApi mode the other cities are filled by **overview** queries, which batch up to 7 airports per request (`SERPAPI_BATCH_MAX_AIRPORTS`). If SerpApi rejects a batch as too large, the batch size is halved and the lower size is remembered. The selected city gets a complete **detail** query per day. SerpApi accepted 8 airports in testing, so 7 is a conservative default. Overview results really are partial: in a 7-airport test, Luton was crowded out.
 
-Switching provider mode also applies to work already queued. Switch to `serpapi` while a week is loading and the rest of that week is fetched with SerpApi.
+Switching provider mode applies from the next fetch, including the rest of a week that's still loading.
 
 **fast-flights notes**
 
+- Google sometimes answers with a temporary error instead of results, especially to cloud servers (Vercel got results about 60–75% of the time in testing). The adapter retries those twice, 1–2 s apart, and only then records an error (retried after 15 minutes). Routes with genuinely no flights return a normal empty result, so they're never confused with errors.
 - Google shows a cookie-consent page to UK/EU IPs. The adapter sends consent cookies (`GOOGLE_CONSENT_COOKIE=true`) so results come back instead.
 - fast-flights 3.1.0's own parser skips Google's "best flights" section and drops flight numbers, so the adapter parses the page payload itself and uses fast-flights only to build the query.
 - For some less common routes, such as Bristol or Leeds Bradford to Karachi, Google's page holds no results even though SerpApi finds itineraries (usually a coach or rail leg to a hub airport). In `auto` mode the SerpApi double-check fills these in. In `fast_flights` mode they show "—".
 
 ## Configuration
 
-`.env` values seed settings on first run. After that, settings live in SQLite and are edited in the UI.
+`.env` values seed settings on first run. After that, settings live in the database and are edited in the UI. On Vercel, set these as Environment Variables in the project settings instead of a `.env` file.
 
 | Variable | Default | |
 | --- | --- | --- |
@@ -76,47 +84,53 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 | `CACHE_TTL_DAYS` | `1` | Cache expiry, 1–5 days. Set here only, not in the UI. Applied to existing entries on restart; nothing is re-fetched until it expires or you refresh. |
 | `SERPAPI_MONTHLY_CAP` | `230` | Hard cap, never exceeded |
 | `SERPAPI_BATCH_MAX_AIRPORTS` | `7` | Max airports per overview query |
-| `FETCH_CONCURRENCY` | `3` | Parallel fetch workers, max 8 |
+| `FETCH_CONCURRENCY` | `3` | City-days fetched in parallel by the browser, max 8 |
 | `FETCH_DELAY_SECONDS` | `0.5-1` | Random delay between requests, in seconds (0.1–60). Doubles per consecutive fast-flights failure, up to 30 s. |
 | `GOOGLE_CONSENT_COOKIE` | `true` | Send Google consent cookies with fast-flights requests |
-| `CACHE_SNAPSHOT_URI` | (empty) | `gs://bucket/object`: restore the database from Cloud Storage at startup and save it back periodically and at shutdown (used on Cloud Run). |
+| `TURSO_DATABASE_URL` | (empty) | Turso database URL (`libsql://….turso.io`). Empty means the local file `data/flights.db`. Needed on Vercel. |
+| `TURSO_AUTH_TOKEN` | (empty) | Token for that Turso database |
 | `ADMIN_PASSWORD` | (empty) | If set, changing settings or cities, Refresh all cache and Clear cache need this password. Leave empty for local use. |
 
 UK city groups and their airports are defined in [backend/config/uk_airports.json](backend/config/uk_airports.json), and its `"enabled"` values are the defaults. Turn cities on or off in ⚙ settings; that choice is saved in the database and overrides the JSON. Edit the JSON (and restart) only to add a city or change its airports. Liverpool and East Midlands are off by default.
 
-## Deploying (free, on Google Cloud Run)
+## Deploying (free, on Vercel + Turso)
 
-[deploy/cloud-run.sh](deploy/cloud-run.sh) builds the `Dockerfile` with Cloud Build and deploys it to Cloud Run. The database is saved to a Cloud Storage bucket, so the cache survives Cloud Run stopping the instance.
+Vercel runs the FastAPI app as a serverless function and serves the built frontend. Serverless functions have no lasting disk, so the cache, settings and SerpApi usage live in a free [Turso](https://turso.tech) database (hosted SQLite). The repo is ready: [vercel.json](vercel.json) builds the frontend, runs in London (`lhr1`) and allows 60 s per request; `pyproject.toml` points Vercel at the app.
 
-**One-time setup**
+**1. Create the database (Turso, free)**
 
-1. Create a Google Cloud account and a project at [console.cloud.google.com](https://console.cloud.google.com). Link a billing account: Cloud Run requires a card even within the free tier.
-2. **Set a budget alert** (Billing → Budgets & alerts, e.g. £1) so any unexpected charge emails you.
-3. Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and run `gcloud auth login`.
+1. Sign up at [turso.tech](https://turso.tech) (GitHub login works).
+2. Create a database named `aero`. Pick the London/Europe location, close to Vercel's `lhr1` region.
+3. Copy its **URL** (`libsql://aero-<you>.turso.io`) and create a **token** for it. Both are on the database's page in the dashboard. With the Turso CLI instead: `turso db show aero --url` and `turso db tokens create aero`.
 
-**Deploy (and redeploy after changes)**
+The app creates its tables on first use, so there's nothing else to set up.
 
-```bash
-PROJECT_ID=your-project-id deploy/cloud-run.sh
-```
+**2. Deploy on Vercel**
 
-The first run enables the APIs. It creates a service account, the `<project>-aero-cache` bucket, and secrets for the admin password and (optionally) the SerpApi key, prompting you for both. Then it builds and deploys, and prints the site URL (`https://aero-….run.app`). Later runs reuse everything and just deploy the current code. Files listed in `.gcloudignore` (`.env`, `data/`, `.git` and so on) are never uploaded.
+1. In Vercel: **Add New → Project**, import this GitHub repo. Leave the framework and build settings as detected (`vercel.json` supplies them).
+2. Under **Environment Variables**, add:
 
-To change a secret: `printf '%s' 'new-value' | gcloud secrets versions add aero-admin-password --data-file=-`, then re-run the script.
+   | Name | Value |
+   | --- | --- |
+   | `TURSO_DATABASE_URL` | the `libsql://…` URL from step 1 |
+   | `TURSO_AUTH_TOKEN` | the token from step 1 |
+   | `ADMIN_PASSWORD` | a long password only you know |
+   | `PROVIDER_MODE` | `fast_flights` (or `auto` if you add a SerpApi key) |
+   | `SERPAPI_API_KEY` | optional |
+   | `CACHE_TTL_DAYS` | optional, `1`–`5` |
 
-**How it behaves**
+3. Deploy, then paste the URL into **Live site** at the top of this README.
 
-- **Region:** `us-central1`, where the free allowances apply. That adds about 0.1 s of delay from the UK.
-- **When it runs:** it has a full CPU while anyone has the page open, because the live-update stream counts as an active request. When nobody is viewing, it pauses and shuts down after up to 15 minutes. The next visit starts it again in a few seconds.
-- **Free allowance:** roughly 50 hours a month of someone actively viewing, about 2 million requests, and plenty of build minutes and storage for this app ([pricing](https://cloud.google.com/run/pricing)). Max instances is 1, so it can't scale up into a bill.
-- **Persistence:** the database (cache, settings and SerpApi usage) is restored from `gs://<project>-aero-cache/flights.db` at startup. It's saved every 5 minutes when something has changed, and again when Cloud Run stops the instance. Settings changed in the UI therefore persist too.
-- **Google and cloud IPs:** Google may treat cloud IPs more strictly. If the status line shows fast-flights failing, unlock admin mode in ⚙ and switch to `auto` so SerpApi fills the gaps.
+Vercel redeploys on every push to `main`. You can also deploy from your machine with `npx vercel deploy --prod`; [.vercelignore](.vercelignore) keeps `.env` and local data from being uploaded.
 
-**Admin mode:** with `ADMIN_PASSWORD` set (the script always sets it), visitors can browse, search and use Refresh day/week. ⚙ settings, city toggles, Refresh all cache and Clear cache need the password. It's checked on the server and kept only in that browser tab's session.
+**What to expect**
 
-**If the first build fails with a permissions error:** some newer projects don't give Cloud Build's default service account enough access. Grant it the *Cloud Build Service Account* role (IAM → the `…-compute@developer.gserviceaccount.com` account) and re-run.
+- **Fetching:** each `/api/fetch` call fetches one city-day and returns in a few seconds, well inside Vercel's limits. A full week is 56 calls and took about 40 s locally. It'll be slower on Vercel when Google sends temporary errors.
+- **Google and cloud IPs:** from Vercel's London region, Google returned results for about 60–75% of searches in testing. The retries cover most of the rest. If the status line shows fast-flights failing, unlock admin mode in ⚙ and switch to `auto` so SerpApi fills the gaps (it spends SerpApi quota).
+- **Cold starts:** after a quiet spell the first request takes a few seconds while the function starts.
+- **Two visitors** fetching the same week share the work: a city-day being fetched by one is skipped by the other, then shows up when it lands.
 
-To run the same image locally: `docker build -t aero . && docker run -p 8000:8000 --env-file .env aero`.
+**Admin mode:** with `ADMIN_PASSWORD` set, visitors can browse, search and use Refresh day/week. ⚙ settings, city toggles, Refresh all cache and Clear cache need the password. It's checked on the server and kept only in that browser tab's session.
 
 ## Development
 
@@ -129,30 +143,32 @@ make smoke ARGS=--record   # re-capture the live fixtures in backend/tests/fixtu
 
 ```text
 backend/
-  app/main.py            FastAPI app, static serving
-  app/api/routes.py      REST + SSE endpoints (/api/...)
+  app/main.py            FastAPI app (the Vercel entrypoint); also serves frontend/dist
+  app/api/routes.py      REST endpoints (/api/...)
+  app/fetcher.py         job planning (/week) and execution (/fetch), provider switching
   app/providers/         base.py (interface), fast_flights.py, serpapi.py
-  app/fetcher.py         priority queue, worker pool, provider switching
-  app/cache.py           SQLite cache, settings, SerpApi usage
+  app/cache.py           cache, settings, SerpApi usage, fetch claims
+  app/db.py              database backends: local SQLite file or Turso (HTTP)
   app/summary.py         week / day summaries from cache entries
-  app/models.py          FlightOption, summaries, settings
-  app/snapshot.py        optional Cloud Storage persistence of the database
+  app/models.py          FlightOption, summaries, jobs, settings
   config/uk_airports.json
+  scripts/smoke.py       live provider check (make smoke)
   tests/                 pytest suite; fixtures/ holds provider responses
 frontend/src/
   components/            TopBar, CitySidebar, Heatmap, DayTabs, FlightTable, SettingsDialog, Footer, Logo
-  hooks/                 TanStack Query hooks, SSE subscription
-  lib/                   API client, URL state, formatting
-data/                    SQLite database (git-ignored)
-deploy/cloud-run.sh      one-command Cloud Run deploy
+  hooks/                 TanStack Query hooks, useFetchQueue
+  lib/                   API client, fetch queue, URL state, formatting
+pyproject.toml, uv.lock  Python project (deps, tools, Vercel entrypoint)
+vercel.json              Vercel build, region and function limits
+data/                    local SQLite database (git-ignored)
 ```
 
 ### How fetching works
 
-The unit of caching is a **route-day**: one UK airport, one foreign airport, one date, one direction. Opening a week view queues the missing or expired route-days in this order:
+The unit of caching is a **route-day**: one UK airport, one foreign airport, one date, one direction. Work is done in **jobs** of one city-day (all of a city's airports on one date).
 
-1. The selected city on the selected day
-2. The selected city's other days, nearest first
-3. Every other city for the week
+1. The page asks `/api/week` for a view. The answer has the cached summary plus the jobs still needed, highest priority first: the selected city on the selected day, then its other days (nearest first), then every other city.
+2. The browser runs those jobs through `/api/fetch`, a few at a time (`FETCH_CONCURRENCY`), waiting the delay the server suggests between requests. After each one it refreshes the week, so cells fill in as they land.
+3. Changing the week, city or day drops jobs that haven't started; running ones finish. A job isn't repeated within a view (failures are cached for 15 minutes), except by Refresh.
 
-Navigating to another view re-prioritises the queue: the new view's jobs run first. Pending jobs from up to 2 other views opened in the last 10 minutes (another tab, say) wait behind them, and older views' jobs are dropped. Running jobs always finish. Cached, unexpired data is never re-fetched unless you refresh, so reloading within the TTL makes no provider calls.
+Every request is short, which is what lets the same code run on Vercel. Cached, unexpired data is never re-fetched unless you refresh, so reloading within the TTL makes no provider calls. A refresh ignores data fetched in the last 2 minutes, so mashing the button can't hammer Google.

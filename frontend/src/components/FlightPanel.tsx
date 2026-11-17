@@ -1,10 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useDayFlights, useWeekFlights } from "../hooks/queries";
 import type { ViewParams } from "../lib/api";
 import { api } from "../lib/api";
 import { expiresIn, formatStamp, PARTIAL_TOOLTIP } from "../lib/format";
-import type { CacheMeta, Direction, GroupWeek } from "../lib/types";
+import type { CacheMeta, Direction, FetchJob, GroupWeek } from "../lib/types";
 import { type SortDir, WHOLE_WEEK } from "../lib/urlState";
 import { DayTabs } from "./DayTabs";
 import { FlightTable } from "./FlightTable";
@@ -18,6 +18,8 @@ interface Props {
   sort: { id: string; dir: SortDir };
   onDay: (day: string) => void;
   onSort: (s: { id: string; dir: SortDir }) => void;
+  /** Hands refresh jobs to the fetch queue (they run ahead of everything else). */
+  onRefreshJobs: (jobs: FetchJob[]) => void;
 }
 
 function MetaLine({ meta }: { meta: CacheMeta }) {
@@ -85,18 +87,14 @@ export function routeTitle(direction: Direction, groupName: string, foreignLabel
   return direction === "from_uk" ? `${groupName} → ${foreignLabel}` : `${foreignLabel} → ${groupName}`;
 }
 
-export function FlightPanel({ view, group, foreignLabel, day, sort, onDay, onSort }: Props) {
-  const qc = useQueryClient();
+export function FlightPanel({ view, group, foreignLabel, day, sort, onDay, onSort, onRefreshJobs }: Props) {
   const isWeek = day === WHOLE_WEEK;
   const dayQ = useDayFlights(view, group.group_id, day);
   const weekQ = useWeekFlights(view, group.group_id, isWeek);
 
   const refreshDay = useMutation({
     mutationFn: () => api.refreshDay(view, group.group_id, day),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["week"] });
-      void qc.invalidateQueries({ queryKey: ["flights"] });
-    },
+    onSuccess: ({ jobs }) => onRefreshJobs(jobs),
   });
 
   const flights = useMemo(

@@ -7,8 +7,8 @@ import { Footer } from "./components/Footer";
 import { Heatmap } from "./components/Heatmap";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { TopBar } from "./components/TopBar";
-import { useAirportSearch, useStatus, useWeek } from "./hooks/queries";
-import { useServerEvents } from "./hooks/useServerEvents";
+import { useAirportSearch, useSettings, useStatus, useWeek } from "./hooks/queries";
+import { useFetchQueue } from "./hooks/useFetchQueue";
 import { api, type ViewParams } from "./lib/api";
 import { useUrlState } from "./lib/urlState";
 
@@ -24,7 +24,13 @@ export default function App() {
 
   const week = useWeek(view, state.group, state.day);
   const { data: status } = useStatus();
-  const { progress } = useServerEvents(state.direction, state.foreign);
+  const { data: settings } = useSettings();
+  // Fetching is driven from here: the queue runs the jobs each week response asks for.
+  const queueView = [state.direction, state.foreign, state.center, state.group, state.day].join("|");
+  const { progress, offer, reset } = useFetchQueue(queueView, settings?.concurrency ?? 2);
+  useEffect(() => {
+    if (week.data && !week.isPlaceholderData) offer(week.data.jobs);
+  }, [week.data, week.isPlaceholderData, offer]);
   const { data: airportMatches } = useAirportSearch(state.foreign);
   const foreignLabel = airportLabel(
     airportMatches?.find((a) => a.iata === state.foreign),
@@ -47,16 +53,24 @@ export default function App() {
   const selectedDate = state.day === "week" ? undefined : state.day;
   const refreshWeek = useMutation({
     mutationFn: () => api.refreshWeek(view, state.group ?? undefined, selectedDate),
-    onSuccess: invalidateAll,
+    onSuccess: ({ jobs }) => offer(jobs, { front: true }),
   });
+  // After expiring or clearing the cache, the next week response lists every
+  // route-day again; reset() lets the queue run them even if tried before.
   const expireAll = useMutation({
-    mutationFn: async () => {
-      await api.expireAll();
-      await api.refreshWeek(view, state.group ?? undefined, selectedDate);
+    mutationFn: api.expireAll,
+    onSuccess: () => {
+      reset();
+      invalidateAll();
     },
-    onSuccess: invalidateAll,
   });
-  const clearCache = useMutation({ mutationFn: api.clearCache, onSuccess: invalidateAll });
+  const clearCache = useMutation({
+    mutationFn: api.clearCache,
+    onSuccess: () => {
+      reset();
+      invalidateAll();
+    },
+  });
 
   const selectedGroup = groups?.find((g) => g.group_id === state.group);
 
@@ -108,6 +122,7 @@ export default function App() {
                 sort={state.sort}
                 onDay={(day) => update({ day })}
                 onSort={(sort) => update({ sort })}
+                onRefreshJobs={(jobs) => offer(jobs, { front: true })}
               />
             )}
             <Footer />

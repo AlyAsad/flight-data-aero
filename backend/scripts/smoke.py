@@ -1,6 +1,6 @@
 """Live smoke test: one NCL → KHI search, 30 days out, per provider.
 
-Usage: uv run python -m scripts.smoke [--record]
+Usage: make smoke   (or, from backend/: uv run python -m scripts.smoke [--record])
 
 --record overwrites the live-captured fixtures in tests/fixtures/*_live.*
 (the test suite asserts on their contents, so re-check tests after recording). SerpApi is skipped
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import httpx
 
-from app.cache import Database, SettingsStore, UsageStore
+from app.cache import SettingsStore, UsageStore, open_database
 from app.config import get_env
 from app.providers.base import ProviderError
 from app.providers.fast_flights import FastFlightsProvider, parse_html
@@ -71,7 +71,7 @@ async def smoke_serpapi(day: date, record: bool) -> bool | None:
     if not env.serpapi_api_key:
         print("[serpapi] skipped (SERPAPI_API_KEY not set)")
         return None
-    db = Database(env.db_path)
+    db = open_database(env)
     usage, settings = UsageStore(db), SettingsStore(db, env)
     if not usage.try_reserve(settings.get().serpapi_monthly_cap):
         print("[serpapi] skipped (monthly cap reached)")

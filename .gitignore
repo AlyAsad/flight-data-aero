@@ -17,3 +17,6 @@ data/
 .vscode/
 .idea/
 .DS_Store
+
+# Vercel CLI project link
+.vercel/

@@ -16,6 +16,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_DIR.parent
 DATA_DIR = REPO_ROOT / "data"
 UK_AIRPORTS_CONFIG = BACKEND_DIR / "config" / "uk_airports.json"
+# Vite builds the frontend here; FastAPI serves it (Vercel moves these files to its CDN).
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 
 # Domain constants from the spec.
@@ -27,6 +28,9 @@ AUTO_FAILOVER_MINUTES = 30
 MIN_DELAY_SECONDS = 0.1
 MAX_DELAY_SECONDS = 60.0
 MAX_BACKOFF_SECONDS = 30.0  # cap for the failure backoff added to the delay
+CLAIM_SECONDS = 90  # how long one request may hold a group-day while fetching it
+MIN_FORCE_AGE_SECONDS = 120  # refresh ignores data fetched more recently than this
+USAGE_SYNC_MINUTES = 30  # how often the SerpApi counter is re-synced from SerpApi
 
 
 def parse_delay_range(value: str | list[float] | tuple[float, float]) -> tuple[float, float]:
@@ -60,9 +64,10 @@ class EnvSettings(BaseSettings):
     # When set, changing settings, cities or clearing the cache needs this password
     # (X-Admin-Password header). Leave empty for local, single-user use.
     admin_password: str = ""
-    # Optional "gs://bucket/object": the SQLite file is restored from Cloud Storage at
-    # startup and saved back periodically and at shutdown (for hosts with a wiped disk).
-    cache_snapshot_uri: str = ""
+    # Turso (hosted SQLite) for deployments without a persistent disk, e.g. Vercel.
+    # Leave empty to use the local SQLite file at db_path.
+    turso_database_url: str = ""
+    turso_auth_token: str = ""
     db_path: Path = DATA_DIR / "flights.db"
 
     @field_validator("fetch_delay_seconds")

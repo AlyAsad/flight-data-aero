@@ -5,34 +5,45 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.state import AppState
-from tests.conftest import GROUPS, FakeProvider, FakeSerpApi, no_sleep
+from tests.conftest import GROUPS, FakeProvider, FakeSerpApi, make_db, no_sleep
 
 CENTER = (date.today() + timedelta(days=30)).isoformat()
+WEEK = {"direction": "from_uk", "foreign": "KHI", "center_date": CENTER, "selected_group": "NCL"}
 
 
-@pytest.fixture
-def client(env):
+def build_client(env, **overrides):
     state = AppState.build(
         env,
         fast_flights=FakeProvider(),
         serpapi=FakeSerpApi(available=False),
         groups=GROUPS,
         sleep=no_sleep,
+        **overrides,
     )
-    app = create_app(state, serve_frontend=False)
-    with TestClient(app) as c:
-        c.state = state
+    client = TestClient(create_app(state, serve_frontend=False))
+    client.state = state
+    return client
+
+
+@pytest.fixture(params=["sqlite", "turso"])
+def client(env, request):
+    """The API end to end, against both database backends."""
+    with build_client(env, db=make_db(env.db_path, request.param)) as c:
         yield c
 
 
-def wait_idle(client):
-    import time
-
-    for _ in range(300):
-        if client.state.fetcher.queue_size == 0:
-            return
-        time.sleep(0.01)
-    raise AssertionError("queue did not drain")
+def run_all_jobs(client, params=WEEK, headers=None):
+    """Do what the browser does: fetch /week, run each job via /fetch, until none are left."""
+    statuses = []
+    for _ in range(10):
+        jobs = client.get("/api/week", params=params).json()["jobs"]
+        if not jobs:
+            return statuses
+        for job in jobs:
+            res = client.post("/api/fetch", json=job, headers=headers or {})
+            assert res.status_code == 200
+            statuses.append(res.json()["status"])
+    raise AssertionError("jobs never finished")
 
 
 def test_uk_groups(client):
@@ -46,21 +57,27 @@ def test_airports_autocomplete(client):
 
 
 def test_week_flow(client):
-    params = {
+    first = client.get("/api/week", params={**WEEK, "foreign": "khi"}).json()
+    assert first["pending_count"] == len(first["jobs"]) == 21
+    assert first["jobs"][0] == {
         "direction": "from_uk",
-        "foreign": "khi",
-        "center_date": CENTER,
-        "selected_group": "NCL",
+        "foreign": "KHI",
+        "group": "NCL",
+        "date": CENTER,
+        "detail": True,
+        "force": False,
+        "route_days": 1,
     }
-    first = client.get("/api/week", params=params).json()
-    assert first["pending_count"] > 0
     assert len(first["dates"]) == 7 and len(first["groups"]) == 3
-    wait_idle(client)
-    week = client.get("/api/week", params=params).json()
-    assert week["pending_count"] == 0
+    assert all(d["loading"] for g in first["groups"] for d in g["days"])
+
+    statuses = run_all_jobs(client)
+    assert set(statuses) == {"done"}
+    week = client.get("/api/week", params=WEEK).json()
+    assert week["pending_count"] == 0 and week["jobs"] == []
     for g in week["groups"]:
         assert g["cheapest_price"] is not None
-        assert all(d["status"] == "ok" for d in g["days"])
+        assert all(d["status"] == "ok" and not d["loading"] for d in g["days"])
     assert week["min_price"] <= week["max_price"]
 
     flights = client.get(
@@ -78,6 +95,13 @@ def test_week_flow(client):
     assert len(wk["days"]) == 7
 
 
+def test_fetch_validates_input(client):
+    bad = {"direction": "from_uk", "foreign": "KHIX", "group": "NCL", "date": CENTER}
+    assert client.post("/api/fetch", json=bad).status_code == 422
+    unknown = {"direction": "from_uk", "foreign": "KHI", "group": "XXX", "date": CENTER}
+    assert client.post("/api/fetch", json=unknown).json()["status"] == "error"
+
+
 def test_unknown_group_404(client):
     res = client.get(
         "/api/flights",
@@ -92,43 +116,49 @@ def test_settings_roundtrip_and_validation(client):
     assert res.status_code == 200
     # Cache expiry comes only from CACHE_TTL_DAYS; the request's ttl_days is ignored.
     assert res.json()["ttl_days"] == 2 and res.json()["delay_seconds"] == [0.1, 0.25]
-    assert client.get("/api/settings").json()["ttl_days"] == 2
     assert client.put("/api/settings", json={"delay_seconds": [0, 1]}).status_code == 422
     assert client.put("/api/settings", json={"delay_seconds": [2, 1]}).status_code == 422
     assert client.put("/api/settings", json={"provider_mode": "bogus"}).status_code == 422
 
 
-def test_cache_controls_and_refresh(client):
-    params = {
-        "direction": "from_uk",
-        "foreign": "KHI",
-        "center_date": CENTER,
-        "selected_group": "NCL",
-    }
-    client.get("/api/week", params=params)
-    wait_idle(client)
-    assert client.post("/api/cache/expire-all").json()["expired"] > 0
-    week = client.get("/api/week", params=params).json()
-    assert any(d["is_stale"] for g in week["groups"] for d in g["days"])
-    wait_idle(client)
-    res = client.post(
+def test_refresh_returns_force_jobs(client):
+    day = client.post(
         "/api/refresh",
         json={
             "scope": "day",
             "direction": "from_uk",
-            "foreign": "KHI",
+            "foreign": "khi",
             "group": "NCL",
             "date": CENTER,
         },
     )
-    assert res.json() == {"queued": 1}
+    [job] = day.json()["jobs"]
+    assert job["force"] is True and job["foreign"] == "KHI" and job["detail"] is True
     assert (
         client.post(
             "/api/refresh", json={"scope": "day", "direction": "from_uk", "foreign": "KHI"}
         ).status_code
         == 422
     )
-    wait_idle(client)
+    week = client.post(
+        "/api/refresh",
+        json={
+            "scope": "week",
+            "direction": "from_uk",
+            "foreign": "KHI",
+            "center_date": CENTER,
+            "group": "NCL",
+        },
+    ).json()["jobs"]
+    assert len(week) == 21 and all(j["force"] for j in week)
+
+
+def test_cache_controls(client):
+    run_all_jobs(client)
+    assert client.post("/api/cache/expire-all").json()["expired"] > 0
+    week = client.get("/api/week", params=WEEK).json()
+    assert any(d["is_stale"] for g in week["groups"] for d in g["days"])
+    assert len(week["jobs"]) == 21  # expired data is re-fetched
     assert client.delete("/api/cache").json()["deleted"] > 0
 
 
@@ -136,12 +166,13 @@ def test_status(client):
     s = client.get("/api/status").json()
     assert s["active_provider"] == "fast_flights"
     assert s["serpapi_usage"] == {"used": 0, "cap": 230}
+    assert s["database"] == "sqlite"
 
 
-def test_default_delay_is_half_to_one_second(env):
-    from app.cache import Database, SettingsStore
+def test_default_delay_is_half_to_one_second(env, db):
+    from app.cache import SettingsStore
 
-    assert SettingsStore(Database(env.db_path), env).get().delay_seconds == (0.5, 1.0)
+    assert SettingsStore(db, env).get().delay_seconds == (0.5, 1.0)
 
 
 def test_toggle_uk_groups(client):
@@ -153,15 +184,9 @@ def test_toggle_uk_groups(client):
     assert {g["id"]: g["enabled"] for g in res.json()} == {"LON": True, "MAN": False, "NCL": True}
     assert [g["id"] for g in client.get("/api/uk-groups").json()] == ["LON", "NCL"]
 
-    params = {
-        "direction": "from_uk",
-        "foreign": "KHI",
-        "center_date": CENTER,
-        "selected_group": "NCL",
-    }
-    week = client.get("/api/week", params=params).json()
+    week = client.get("/api/week", params=WEEK).json()
     assert [g["group_id"] for g in week["groups"]] == ["LON", "NCL"]
-    assert all(k.group_id != "MAN" for k in client.state.fetcher.queued_keys())
+    assert all(j["group"] != "MAN" for j in week["jobs"])
     assert (
         client.get(
             "/api/flights",
@@ -176,18 +201,10 @@ def test_toggle_uk_groups(client):
 
 @pytest.fixture
 def admin_client(env):
-    env = env.model_copy(update={"admin_password": "s3cret"})
-    state = AppState.build(
-        env,
-        fast_flights=FakeProvider(),
-        serpapi=FakeSerpApi(available=False),
-        groups=GROUPS,
-        sleep=no_sleep,
-    )
     import app.api.routes as routes
 
     routes.FAILED_LOGIN_DELAY_SECONDS = 0
-    with TestClient(create_app(state, serve_frontend=False)) as c:
+    with build_client(env.model_copy(update={"admin_password": "s3cret"})) as c:
         yield c
 
 
@@ -220,14 +237,9 @@ def test_admin_password_protects_shared_settings(admin_client):
 
 def test_public_endpoints_stay_open_with_admin_password(admin_client):
     c = admin_client
-    params = {
-        "direction": "from_uk",
-        "foreign": "KHI",
-        "center_date": CENTER,
-        "selected_group": "NCL",
-    }
-    assert c.get("/api/week", params=params).status_code == 200
+    assert c.get("/api/week", params=WEEK).status_code == 200
     assert c.get("/api/settings").status_code == 200
+    assert set(run_all_jobs(c)) == {"done"}
     res = c.post(
         "/api/refresh",
         json={"scope": "week", "direction": "from_uk", "foreign": "KHI", "center_date": CENTER},
@@ -235,9 +247,7 @@ def test_public_endpoints_stay_open_with_admin_password(admin_client):
     assert res.status_code == 200
 
 
-def test_cache_ttl_comes_from_env_and_applies_on_startup(env, tmp_path):
-    from datetime import timedelta
-
+def test_cache_ttl_comes_from_env_and_applies_on_startup(env):
     from app.cache import RouteKey, utcnow
     from app.models import Completeness, Direction
 
@@ -255,14 +265,6 @@ def test_cache_ttl_comes_from_env_and_applies_on_startup(env, tmp_path):
     )
     state.db.close()
 
-    env5 = env.model_copy(update={"cache_ttl_days": 5})
-    state5 = AppState.build(
-        env5,
-        fast_flights=FakeProvider(),
-        serpapi=FakeSerpApi(available=False),
-        groups=GROUPS,
-        sleep=no_sleep,
-    )
-    with TestClient(create_app(state5, serve_frontend=False)) as c:
+    with build_client(env.model_copy(update={"cache_ttl_days": 5})) as c:
         assert c.get("/api/settings").json()["ttl_days"] == 5
-        assert state5.cache.get(key).expires_at == fetched + timedelta(days=5)
+        assert c.state.cache.get(key).expires_at == fetched + timedelta(days=5)
