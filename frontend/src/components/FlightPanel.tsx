@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useDayFlights, useWeekFlights } from "../hooks/queries";
 import type { ViewParams } from "../lib/api";
 import { api } from "../lib/api";
@@ -98,7 +99,10 @@ export function FlightPanel({ view, group, foreignLabel, day, sort, onDay, onSor
     },
   });
 
-  const flights = isWeek ? (weekQ.data?.days.flatMap((d) => d.flights) ?? []) : (dayQ.data?.flights ?? []);
+  const flights = useMemo(
+    () => (isWeek ? (weekQ.data?.days.flatMap((d) => d.flights) ?? []) : (dayQ.data?.flights ?? [])),
+    [isWeek, weekQ.data, dayQ.data],
+  );
   const meta = isWeek ? (weekQ.data ? weekMeta(weekQ.data.days) : undefined) : dayQ.data?.meta;
   const daySummary = group.days.find((d) => d.date === day);
   const error = (isWeek ? weekQ.error : dayQ.error) as Error | null;

@@ -116,3 +116,40 @@ describe("FlightTable", () => {
     expect(screen.getAllByText("+1")).toHaveLength(3);
   });
 });
+
+describe("FlightTable render stability", () => {
+  // Regression: an unstable `sorting` array plus TanStack's auto-reset caused an
+  // endless synchronous re-render (page froze) when switching cities. A runaway
+  // loop would starve the test timer, so a tripwire getter fails fast instead.
+  function tripwireFlight(id: string) {
+    let reads = 0;
+    const f = flight({ id });
+    Object.defineProperty(f, "price_gbp", {
+      get() {
+        if (++reads > 2000) throw new Error("FlightTable is re-rendering endlessly");
+        return 400;
+      },
+    });
+    return f;
+  }
+
+  it("settles after the parent re-renders with new data", async () => {
+    const { useState } = await import("react");
+    const { act } = await import("@testing-library/react");
+    let setFlights: (f: ReturnType<typeof flight>[]) => void = () => {};
+    function Parent() {
+      const [fl, setFl] = useState([tripwireFlight("a")]);
+      setFlights = setFl;
+      // A fresh sort object every render, as App passes it from URL state.
+      return <FlightTable flights={fl} direction="from_uk" showDate={false} sort={{ id: "price", dir: "asc" }} onSort={() => {}} />;
+    }
+    render(<Parent />);
+    for (let i = 0; i < 3; i++) {
+      await act(async () => {
+        setFlights([tripwireFlight(`b${i}`), flight({ id: `c${i}`, price_gbp: 100 })]);
+        await new Promise((r) => setTimeout(r, 20));
+      });
+    }
+    expect(screen.getAllByRole("row")).toHaveLength(3);
+  });
+});

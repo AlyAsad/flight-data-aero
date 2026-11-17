@@ -191,7 +191,13 @@ export function FlightTable({ flights, direction, showDate, sort, onSort }: Prop
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const columns = useMemo(() => buildColumns(direction, showDate), [direction, showDate]);
   const highlights = useMemo(() => computeHighlights(flights), [flights]);
-  const sorting: SortingState = [{ id: sort.id, desc: sort.dir === "desc" }];
+  // Must be referentially stable: a new array each render makes the sorted row
+  // model recompute every render, which (with TanStack's auto-reset of table
+  // state) re-renders again, in an endless loop.
+  const sorting: SortingState = useMemo(
+    () => [{ id: sort.id, desc: sort.dir === "desc" }],
+    [sort.id, sort.dir],
+  );
 
   const table = useReactTable({
     data: flights,
@@ -206,6 +212,7 @@ export function FlightTable({ flights, direction, showDate, sort, onSort }: Prop
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     enableSortingRemoval: false,
+    autoResetAll: false, // no pagination/expansion state to reset
     sortDescFirst: false,
   });
 
