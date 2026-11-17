@@ -96,3 +96,45 @@ class TestSerpApi:
         assert parse_baggage(["Average legroom"]) is None
         b = parse_baggage(["1st checked bag included", "Carry-on bag for a fee"])
         assert (b.checked, b.carry_on) == ("included", "fee")
+
+
+class TestLiveFixtures:
+    """Real responses for the same search, captured on 2026-11-17."""
+
+    def ff(self):
+        return parse_html((FIXTURES / "fast_flights_ncl_khi_live.html").read_text())
+
+    def serp(self):
+        return parse_response(json.loads((FIXTURES / "serpapi_ncl_khi_live.json").read_text()))
+
+    def test_fast_flights_reads_best_and_other_sections(self):
+        flights = self.ff()
+        # 5 "best" + 4 "other" itineraries; fast-flights' own parser only returns the 4.
+        assert len(flights) == 9
+        cheapest = min(flights, key=lambda f: f.price_gbp or 1e9)
+        assert cheapest.price_gbp == 748
+        assert cheapest.flight_numbers == ["EK 36", "EK 604"]
+        assert cheapest.duration_minutes == 2130
+
+    def test_fast_flights_detects_airport_change(self):
+        lgw = next(f for f in self.ff() if f.flight_numbers and "QR 330" in f.flight_numbers)
+        assert lgw.layovers[0].airport == "LHR" and lgw.layovers[0].airport_change is True
+
+    def test_serpapi_live(self):
+        flights = self.serp()
+        assert len(flights) == 9
+        assert all(f.origin_airport == "NCL" and f.destination_airport == "KHI" for f in flights)
+        assert min(f.price_gbp for f in flights) == 748
+
+    def test_providers_agree_on_itineraries(self):
+        ff = {f.id: f for f in self.ff()}
+        serp = {f.id: f for f in self.serp()}
+        assert ff.keys() == serp.keys()
+        for fid, f in ff.items():
+            s = serp[fid]
+            assert (f.duration_minutes, f.stops, f.arrival_day_offset, f.flight_numbers) == (
+                s.duration_minutes,
+                s.stops,
+                s.arrival_day_offset,
+                s.flight_numbers,
+            )

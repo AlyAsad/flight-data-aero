@@ -1,16 +1,15 @@
 # Provider fixtures
 
-Offline responses used by the adapter tests (the suite makes no live calls).
+Responses used by the adapter tests (the suite makes no live calls).
 
-| File | What it is |
-| --- | --- |
-| `fast_flights_ncl_khi.html` | A Google Flights page in the shape the pinned fast-flights 3.1.0 parser reads (`script.ds:1` payload). |
-| `fast_flights_consent.html` | Google's cookie-consent interstitial, which can be served instead of results from UK/EU IPs. |
-| `serpapi_lon_khi.json` | A SerpApi `google_flights` one-way response for `LHR,LGW,STN,LTN → KHI`. |
-| `serpapi_no_results.json` | SerpApi's "no results" error body. |
+| File | Source | What it is |
+| --- | --- | --- |
+| `fast_flights_ncl_khi_live.html` | Live, 2026-11-17 | Google Flights NCL → KHI (17 Dec 2026), reduced to the `ds:1` data script. |
+| `serpapi_ncl_khi_live.json` | Live, 2026-11-17 | SerpApi response for the same search (no API key inside). |
+| `fast_flights_ncl_khi.html` | Hand-built | Edge cases: zero price, leading-zero hour, overnight layover. |
+| `fast_flights_consent.html` | Hand-built | Google's cookie-consent interstitial. |
+| `serpapi_lon_khi.json` | Hand-built | Multi-airport London group: baggage text, self-transfer, airport change, missing price. |
+| `serpapi_no_results.json` | Hand-built | SerpApi's "no results" error body. |
 
-These were **built by hand** to match the library's parser indices and SerpApi's
-documented schema, not captured from live traffic. To replace them with real
-responses, run `make smoke ARGS=--record` from the repo root. It writes live
-responses next to these files with a `.live` suffix so you can compare before
-swapping them in.
+`make smoke ARGS=--record` re-captures the two live fixtures. Tests assert on
+their contents, so update the assertions in `test_providers.py` after recording.

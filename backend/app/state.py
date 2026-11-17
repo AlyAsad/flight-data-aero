@@ -51,7 +51,11 @@ class AppState:
             reserve=lambda: usage.try_reserve(settings.get().serpapi_monthly_cap),
         )
         providers = ProviderManager(
-            fast_flights or FastFlightsProvider(), serp, settings, usage, bus
+            fast_flights or FastFlightsProvider(env.google_consent_cookie),
+            serp,
+            settings,
+            usage,
+            bus,
         )
         kwargs = {"sleep": sleep} if sleep else {}
         fetcher = Fetcher(

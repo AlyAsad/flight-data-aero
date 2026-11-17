@@ -45,6 +45,11 @@ TIER_SELECTED_DAY = 0
 TIER_SELECTED_WEEK = 1
 TIER_OTHER_GROUPS = 2
 
+# Other recently opened views (e.g. a second browser tab) keep their queued work
+# at lower priority instead of losing it, so two views don't keep cancelling each other.
+RETAINED_VIEWS = 3  # current view + 2 previous
+VIEW_RETENTION = timedelta(minutes=10)
+
 
 def route_endpoints(direction: Direction, uk: str, foreign: str) -> tuple[str, str]:
     """(origin, destination) for a query."""
@@ -63,13 +68,14 @@ class JobKey:
 class Job:
     key: JobKey
     group: UKGroup
-    priority: tuple[int, int, int]
+    priority: tuple[int, int, int, int]  # (view rank, tier, day distance, group order)
     detail: bool  # selected city: needs complete (non-overview) data
     force_after: datetime | None = None  # refresh: data must be newer than this
     seq: int = 0
     planned_route_days: int = 0
+    view: tuple | None = None  # None for explicit refresh jobs
 
-    def sort_key(self) -> tuple[tuple[int, int, int], int]:
+    def sort_key(self) -> tuple[tuple[int, int, int, int], int]:
         return (self.priority, self.seq)
 
 
@@ -214,7 +220,7 @@ class Fetcher:
         self._sleep = sleep
         self._pending: dict[JobKey, Job] = {}
         self._running: dict[JobKey, Job] = {}
-        self._view: tuple | None = None
+        self._views: list[tuple[tuple, datetime]] = []  # most recent first
         self._seq = count()
         self._wakeup = asyncio.Event()
         self._workers: dict[int, asyncio.Task] = {}
@@ -288,11 +294,19 @@ class Fetcher:
     ) -> int:
         """Queue every route-day of a week view that needs fetching, in priority order.
 
-        Pending jobs from other views are dropped (re-prioritisation); running
-        jobs finish. Returns the number of queued group-days for this view.
+        The requested view's jobs come first. Pending jobs of up to
+        RETAINED_VIEWS - 1 other views seen in the last VIEW_RETENTION are kept
+        behind them; older views' pending jobs are dropped. Running jobs finish.
+        Returns the number of queued group-days for this view.
         """
         now = utcnow()
         selected_date = selected_date or center
+        view = (direction, foreign, center, selected_group, selected_date)
+        self._views = [(view, now)] + [
+            (v, seen) for v, seen in self._views if v != view and now - seen < VIEW_RETENTION
+        ][: RETAINED_VIEWS - 1]
+        rank = {v: i for i, (v, _) in enumerate(self._views)}
+
         force_after = now if force else None
         new_jobs: dict[JobKey, Job] = {}
         for group in self._groups:
@@ -311,32 +325,47 @@ class Fetcher:
                 job = Job(
                     key=key,
                     group=group,
-                    priority=(tier, abs((day - selected_date).days), self._group_order[group.id]),
+                    priority=(
+                        0,
+                        tier,
+                        abs((day - selected_date).days),
+                        self._group_order[group.id],
+                    ),
                     detail=is_selected,
                     force_after=force_after or (existing.force_after if existing else None),
                     seq=next(self._seq),
+                    view=view,
                 )
                 needed = self._airports_needing_fetch(job, now)
                 if needed:
                     job.planned_route_days = len(needed)
                     new_jobs[key] = job
 
-        # Replace pending work: jobs from other views are dropped, jobs for this
-        # view are re-prioritised. Running jobs finish untouched.
+        # Keep explicit refreshes and other recent views' jobs, demoted by view rank.
+        for key, job in self._pending.items():
+            if key in new_jobs:
+                continue
+            if job.view is None:
+                new_jobs[key] = job
+            elif job.view in rank:
+                job.priority = (rank[job.view], *job.priority[1:])
+                new_jobs[key] = job
+
+        if force or (not self._pending and not self._running):
+            self.progress = ProgressCounter()
         self._pending = new_jobs
-        view = (direction, foreign, center, selected_group, selected_date)
-        planned = sum(j.planned_route_days for j in new_jobs.values())
-        running = sum(j.planned_route_days for j in self._running.values())
-        if force or view != self._view:
-            self.progress = ProgressCounter(total=planned + running)
-        else:
-            self.progress.total = self.progress.done + planned + running
-        self._view = view
+        self._recount_progress()
         self._publish_queue()
         self._wakeup.set()
-        return len(new_jobs) + sum(
+        return sum(1 for j in new_jobs.values() if j.view == view) + sum(
             1 for k in self._running if k.direction is direction and k.foreign == foreign
         )
+
+    def _recount_progress(self) -> None:
+        """Total = finished + still-queued route-days, across all queued views."""
+        queued = sum(j.planned_route_days for j in self._pending.values())
+        running = sum(j.planned_route_days for j in self._running.values())
+        self.progress.total = self.progress.done + queued + running
 
     def refresh_day(self, direction: Direction, foreign: str, group: UKGroup, day: date) -> bool:
         if not is_fetchable(day):
@@ -345,14 +374,16 @@ class Fetcher:
         job = Job(
             key=key,
             group=group,
-            priority=(-1, 0, 0),  # explicit user action: run first
+            priority=(-1, 0, 0, 0),  # explicit user action: run first
             detail=True,
             force_after=utcnow(),
             seq=next(self._seq),
             planned_route_days=len(group.airports),
         )
+        if not self._pending and not self._running:
+            self.progress = ProgressCounter()
         self._pending[key] = job
-        self.progress.total += job.planned_route_days
+        self._recount_progress()
         self._publish_queue()
         self._wakeup.set()
         return True

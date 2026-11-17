@@ -2,8 +2,8 @@
 
 Usage: uv run python -m scripts.smoke [--record]
 
---record saves the raw live responses into tests/fixtures/*.live so they can
-be compared with (or swapped in for) the offline fixtures. SerpApi is skipped
+--record overwrites the live-captured fixtures in tests/fixtures/*_live.*
+(the test suite asserts on their contents, so re-check tests after recording). SerpApi is skipped
 when SERPAPI_API_KEY is not set; a SerpApi run uses 1 search of your quota.
 """
 
@@ -28,6 +28,19 @@ FIXTURES = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
 ORIGIN, DEST = "NCL", "KHI"
 
 
+def _strip_page(html: str) -> str:
+    """Keep only the data script the parser reads (the full page is ~2 MB)."""
+    from selectolax.lexbor import LexborHTMLParser
+
+    script = LexborHTMLParser(html).css_first(r"script.ds\:1")
+    if script is None:
+        return html
+    return (
+        "<!doctype html><html><head><title>Google Flights</title></head><body>"
+        f'<script class="ds:1">{script.text()}</script></body></html>'
+    )
+
+
 def report(name: str, flights) -> None:
     print(f"[{name}] {len(flights)} flights")
     for f in sorted(flights, key=lambda f: f.price_gbp or 1e9)[:5]:
@@ -44,7 +57,7 @@ async def smoke_fast_flights(day: date, record: bool) -> bool:
     try:
         html = await asyncio.to_thread(provider._fetch_html, ORIGIN, DEST, day)
         if record:
-            (FIXTURES / "fast_flights_ncl_khi.html.live").write_text(html)
+            (FIXTURES / "fast_flights_ncl_khi_live.html").write_text(_strip_page(html))
         flights = parse_html(html)
     except ProviderError as exc:
         print(f"[fast_flights] FAILED: {exc}")
@@ -79,7 +92,7 @@ async def smoke_serpapi(day: date, record: bool) -> bool | None:
         data = (await client.get(ENDPOINT, params=params)).json()
     if record:
         data.pop("search_metadata", None)
-        (FIXTURES / "serpapi_ncl_khi.json.live").write_text(json.dumps(data, indent=2))
+        (FIXTURES / "serpapi_ncl_khi_live.json").write_text(json.dumps(data, indent=2))
     try:
         flights = parse_response(data)
     except ProviderError as exc:

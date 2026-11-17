@@ -35,9 +35,9 @@ class TestPlanning:
         while (job := fetcher._take()) is not None:
             order.append(job)
         assert (order[0].key.group_id, order[0].key.date) == ("NCL", CENTER)
-        assert order[0].priority[0] == TIER_SELECTED_DAY
+        assert order[0].priority[1] == TIER_SELECTED_DAY
         assert all(j.key.group_id == "NCL" for j in order[:7])
-        assert all(j.priority[0] == TIER_OTHER_GROUPS for j in order[7:])
+        assert all(j.priority[1] == TIER_OTHER_GROUPS for j in order[7:])
         # Selected city's other days run nearest-first.
         dists = [abs((j.key.date - CENTER).days) for j in order[1:7]]
         assert dists == sorted(dists)
@@ -51,10 +51,25 @@ class TestPlanning:
         far = date.today() + timedelta(days=400)
         assert fetcher.plan_view(FROM, "KHI", far, "NCL") == 0
 
-    def test_replan_replaces_other_views(self, fetcher):
+    def test_new_view_runs_first_and_recent_views_are_kept(self, fetcher):
         fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
         fetcher.plan_view(FROM, "DXB", CENTER, "MAN")
-        assert {k.foreign for k in fetcher.queued_keys()} == {"DXB"}
+        order = []
+        while (job := fetcher._take()) is not None:
+            order.append(job.key.foreign)
+        assert order == ["DXB"] * 21 + ["KHI"] * 21
+
+    def test_old_views_beyond_retention_are_dropped(self, fetcher):
+        for foreign in ("AAA", "BBB", "CCC", "DDD"):
+            fetcher.plan_view(FROM, foreign, CENTER, "NCL")
+        assert {k.foreign for k in fetcher.queued_keys()} == {"BBB", "CCC", "DDD"}
+
+    def test_replanning_same_view_keeps_progress(self, fetcher):
+        fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+        fetcher.progress.done = 5
+        fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+        assert fetcher.progress.done == 5
+        assert fetcher.progress.total == 5 + 42
 
 
 class TestNeedsFetch:

@@ -50,6 +50,7 @@ class EnvSettings(BaseSettings):
     serpapi_batch_max_airports: int = Field(default=7, ge=1)
     fetch_concurrency: int = Field(default=2, ge=1, le=8)
     fetch_delay_seconds: str = "1-3"
+    google_consent_cookie: bool = True
     db_path: Path = DATA_DIR / "flights.db"
 
     @field_validator("fetch_delay_seconds")

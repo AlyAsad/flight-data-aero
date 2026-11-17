@@ -1,0 +1,1171 @@
+{
+  "search_parameters": {
+    "engine": "google_flights",
+    "hl": "en",
+    "gl": "uk",
+    "type": "2",
+    "departure_id": "NCL",
+    "arrival_id": "KHI",
+    "outbound_date": "2026-12-17",
+    "adults": 1,
+    "currency": "GBP"
+  },
+  "best_flights": [
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 13:15"
+          },
+          "arrival_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-18 00:25"
+          },
+          "duration": 430,
+          "airplane": "Boeing 777",
+          "airline": "Emirates",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EK.png",
+          "travel_class": "Economy",
+          "flight_number": "EK 36",
+          "ticket_also_sold_by": [
+            "Qantas"
+          ],
+          "legroom": "32 in",
+          "extensions": [
+            "Above average legroom (32 in)",
+            "Wi-Fi for a fee",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 392 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-19 02:45"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-19 05:45"
+          },
+          "duration": 120,
+          "airplane": "Boeing 777",
+          "airline": "Emirates",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EK.png",
+          "travel_class": "Economy",
+          "flight_number": "EK 604",
+          "legroom": "32 in",
+          "extensions": [
+            "Above average legroom (32 in)",
+            "Wi-Fi for a fee",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 115 kg"
+          ],
+          "overnight": true
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 1580,
+          "name": "Dubai International Airport",
+          "id": "DXB"
+        }
+      ],
+      "total_duration": 2130,
+      "carbon_emissions": {
+        "this_flight": 509000,
+        "typical_for_this_route": 557000,
+        "difference_percent": -9
+      },
+      "price": 748,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EK.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFZ3BGU3pNMmZFVkxOakEwR2dzSWhzZ0VFQUlhQTBkQ1VEZ2NjSnFDQmc9PSIsW1siTkNMIiwiMjAyNi0xMi0xNyIsIkRYQiIsbnVsbCwiRUsiLCIzNiJdLFsiRFhCIiwiMjAyNi0xMi0xOSIsIktISSIsbnVsbCwiRUsiLCI2MDQiXV1d"
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 13:15"
+          },
+          "arrival_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-18 00:25"
+          },
+          "duration": 430,
+          "airplane": "Boeing 777",
+          "airline": "Emirates",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EK.png",
+          "travel_class": "Economy",
+          "flight_number": "EK 36",
+          "legroom": "32 in",
+          "extensions": [
+            "Above average legroom (32 in)",
+            "Wi-Fi for a fee",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 392 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-18 06:00"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-18 09:00"
+          },
+          "duration": 120,
+          "airplane": "Boeing 737MAX 8 Passenger",
+          "airline": "flydubai",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/FZ.png",
+          "travel_class": "Economy",
+          "flight_number": "FZ 333",
+          "ticket_also_sold_by": [
+            "Emirates"
+          ],
+          "legroom": "30 in",
+          "extensions": [
+            "Average legroom (30 in)",
+            "In-seat USB outlet",
+            "On-demand video",
+            "Carbon emissions estimate: 95 kg"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 335,
+          "name": "Dubai International Airport",
+          "id": "DXB"
+        }
+      ],
+      "total_duration": 885,
+      "carbon_emissions": {
+        "this_flight": 489000,
+        "typical_for_this_route": 557000,
+        "difference_percent": -12
+      },
+      "price": 813,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFZ3BGU3pNMmZFWmFNek16R2dzSTJ2b0VFQUlhQTBkQ1VEZ2NjSURGQmc9PSIsW1siTkNMIiwiMjAyNi0xMi0xNyIsIkRYQiIsbnVsbCwiRUsiLCIzNiJdLFsiRFhCIiwiMjAyNi0xMi0xOCIsIktISSIsbnVsbCwiRloiLCIzMzMiXV1d"
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 13:15"
+          },
+          "arrival_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-18 00:25"
+          },
+          "duration": 430,
+          "airplane": "Boeing 777",
+          "airline": "Emirates",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EK.png",
+          "travel_class": "Economy",
+          "flight_number": "EK 36",
+          "ticket_also_sold_by": [
+            "Qantas"
+          ],
+          "legroom": "32 in",
+          "extensions": [
+            "Above average legroom (32 in)",
+            "Wi-Fi for a fee",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 392 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-18 07:30"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-18 10:30"
+          },
+          "duration": 120,
+          "airplane": "Boeing 777",
+          "airline": "Emirates",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EK.png",
+          "travel_class": "Economy",
+          "flight_number": "EK 600",
+          "legroom": "32 in",
+          "extensions": [
+            "Above average legroom (32 in)",
+            "Wi-Fi for a fee",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 105 kg"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 425,
+          "name": "Dubai International Airport",
+          "id": "DXB"
+        }
+      ],
+      "total_duration": 975,
+      "carbon_emissions": {
+        "this_flight": 498000,
+        "typical_for_this_route": 557000,
+        "difference_percent": -11
+      },
+      "price": 813,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EK.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFZ3BGU3pNMmZFVkxOakF3R2dzSTJ2b0VFQUlhQTBkQ1VEZ2NjSURGQmc9PSIsW1siTkNMIiwiMjAyNi0xMi0xNyIsIkRYQiIsbnVsbCwiRUsiLCIzNiJdLFsiRFhCIiwiMjAyNi0xMi0xOCIsIktISSIsbnVsbCwiRUsiLCI2MDAiXV1d"
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 16:55"
+          },
+          "arrival_airport": {
+            "name": "A\u00e9roport de Paris-Charles de Gaulle",
+            "id": "CDG",
+            "time": "2026-12-17 19:40"
+          },
+          "duration": 105,
+          "airplane": "Embraer 190",
+          "airline": "Air France",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AF.png",
+          "travel_class": "Economy",
+          "flight_number": "AF 1159",
+          "legroom": "29 in",
+          "extensions": [
+            "Below average legroom (29 in)",
+            "In-seat USB outlet",
+            "Carbon emissions estimate: 102 kg"
+          ],
+          "plane_and_crew_by": "HOP!"
+        },
+        {
+          "departure_airport": {
+            "name": "A\u00e9roport de Paris-Charles de Gaulle",
+            "id": "CDG",
+            "time": "2026-12-17 23:10"
+          },
+          "arrival_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-18 09:00"
+          },
+          "duration": 410,
+          "airplane": "Boeing 777",
+          "airline": "Air France",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/AF.png",
+          "travel_class": "Economy",
+          "flight_number": "AF 658",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "Wi-Fi for a fee",
+            "In-seat USB outlet",
+            "On-demand video",
+            "Carbon emissions estimate: 362 kg"
+          ],
+          "overnight": true
+        },
+        {
+          "departure_airport": {
+            "name": "Dubai International Airport",
+            "id": "DXB",
+            "time": "2026-12-18 12:25"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-18 15:25"
+          },
+          "duration": 120,
+          "airplane": "Boeing 737MAX 8 Passenger",
+          "airline": "flydubai",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/FZ.png",
+          "travel_class": "Economy",
+          "flight_number": "FZ 335",
+          "legroom": "30 in",
+          "extensions": [
+            "Average legroom (30 in)",
+            "In-seat USB outlet",
+            "On-demand video",
+            "Carbon emissions estimate: 95 kg"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 210,
+          "name": "A\u00e9roport de Paris-Charles de Gaulle",
+          "id": "CDG"
+        },
+        {
+          "duration": 205,
+          "name": "Dubai International Airport",
+          "id": "DXB"
+        }
+      ],
+      "total_duration": 1050,
+      "carbon_emissions": {
+        "this_flight": 561000,
+        "typical_for_this_route": 557000,
+        "difference_percent": 1
+      },
+      "price": 1203,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFaEpCUmpFeE5UbDhRVVkyTlRoOFJsb3pNelVhQ3dqVHF3Y1FBaG9EUjBKUU9CeHdrdGNKIixbWyJOQ0wiLCIyMDI2LTEyLTE3IiwiQ0RHIixudWxsLCJBRiIsIjExNTkiXSxbIkNERyIsIjIwMjYtMTItMTciLCJEWEIiLG51bGwsIkFGIiwiNjU4Il0sWyJEWEIiLCIyMDI2LTEyLTE4IiwiS0hJIixudWxsLCJGWiIsIjMzNSJdXV0="
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 12:10"
+          },
+          "arrival_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 13:35"
+          },
+          "duration": 85,
+          "airplane": "Airbus A320neo",
+          "airline": "British Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/BA.png",
+          "travel_class": "Economy",
+          "flight_number": "BA 1331",
+          "ticket_also_sold_by": [
+            "Qatar Airways"
+          ],
+          "legroom": "29 in",
+          "extensions": [
+            "Below average legroom (29 in)",
+            "Wi-Fi for a fee",
+            "In-seat USB outlet",
+            "Carbon emissions estimate: 52 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 15:30"
+          },
+          "arrival_airport": {
+            "name": "Hamad International Airport",
+            "id": "DOH",
+            "time": "2026-12-18 01:15"
+          },
+          "duration": 405,
+          "airplane": "Boeing 777",
+          "airline": "Qatar Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/QR.png",
+          "travel_class": "Economy",
+          "flight_number": "QR 110",
+          "ticket_also_sold_by": [
+            "British Airways"
+          ],
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 395 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "Hamad International Airport",
+            "id": "DOH",
+            "time": "2026-12-18 02:35"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-18 06:55"
+          },
+          "duration": 140,
+          "airplane": "Boeing 787",
+          "airline": "Qatar Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/QR.png",
+          "travel_class": "Economy",
+          "flight_number": "QR 610",
+          "ticket_also_sold_by": [
+            "British Airways"
+          ],
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 127 kg"
+          ],
+          "overnight": true
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 115,
+          "name": "Heathrow Airport",
+          "id": "LHR"
+        },
+        {
+          "duration": 80,
+          "name": "Hamad International Airport",
+          "id": "DOH"
+        }
+      ],
+      "total_duration": 825,
+      "carbon_emissions": {
+        "this_flight": 576000,
+        "typical_for_this_route": 557000,
+        "difference_percent": 3
+      },
+      "price": 1303,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFaEpDUVRFek16RjhVVkl4TVRCOFVWSTJNVEFhQ3dqbytRY1FBaG9EUjBKUU9CeHduTDRLIixbWyJOQ0wiLCIyMDI2LTEyLTE3IiwiTEhSIixudWxsLCJCQSIsIjEzMzEiXSxbIkxIUiIsIjIwMjYtMTItMTciLCJET0giLG51bGwsIlFSIiwiMTEwIl0sWyJET0giLCIyMDI2LTEyLTE4IiwiS0hJIixudWxsLCJRUiIsIjYxMCJdXV0="
+    }
+  ],
+  "other_flights": [
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 20:45"
+          },
+          "arrival_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 21:55"
+          },
+          "duration": 70,
+          "airplane": "Airbus A321neo",
+          "airline": "British Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/BA.png",
+          "travel_class": "Economy",
+          "flight_number": "BA 1337",
+          "ticket_also_sold_by": [
+            "Qatar Airways"
+          ],
+          "legroom": "29 in",
+          "extensions": [
+            "Below average legroom (29 in)",
+            "Wi-Fi for a fee",
+            "In-seat USB outlet",
+            "Carbon emissions estimate: 48 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "London Gatwick Airport",
+            "id": "LGW",
+            "time": "2026-12-18 08:40"
+          },
+          "arrival_airport": {
+            "name": "Hamad International Airport",
+            "id": "DOH",
+            "time": "2026-12-18 18:10"
+          },
+          "duration": 390,
+          "airplane": "Boeing 787",
+          "airline": "Qatar Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/QR.png",
+          "travel_class": "Economy",
+          "flight_number": "QR 330",
+          "ticket_also_sold_by": [
+            "British Airways"
+          ],
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "Wi-Fi for a fee",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 293 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "Hamad International Airport",
+            "id": "DOH",
+            "time": "2026-12-18 21:15"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-19 01:35"
+          },
+          "duration": 140,
+          "airplane": "Boeing 787",
+          "airline": "Qatar Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/QR.png",
+          "travel_class": "Economy",
+          "flight_number": "QR 604",
+          "ticket_also_sold_by": [
+            "British Airways"
+          ],
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 127 kg"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 645,
+          "name": "London Gatwick Airport",
+          "id": "LHR"
+        },
+        {
+          "duration": 185,
+          "name": "Hamad International Airport",
+          "id": "DOH"
+        }
+      ],
+      "total_duration": 1430,
+      "carbon_emissions": {
+        "this_flight": 470000,
+        "typical_for_this_route": 557000,
+        "difference_percent": -16
+      },
+      "price": 1295,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFaEpDUVRFek16ZDhVVkl6TXpCOFVWSTJNRFFhQ3dqOThnY1FBaG9EUjBKUU9CeHdtclVLIixbWyJOQ0wiLCIyMDI2LTEyLTE3IiwiTEhSIixudWxsLCJCQSIsIjEzMzciXSxbIkxHVyIsIjIwMjYtMTItMTgiLCJET0giLG51bGwsIlFSIiwiMzMwIl0sWyJET0giLCIyMDI2LTEyLTE4IiwiS0hJIixudWxsLCJRUiIsIjYwNCJdXV0="
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 16:35"
+          },
+          "arrival_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 17:50"
+          },
+          "duration": 75,
+          "airplane": "Airbus A321neo",
+          "airline": "British Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/BA.png",
+          "travel_class": "Economy",
+          "flight_number": "BA 1335",
+          "ticket_also_sold_by": [
+            "Qatar Airways"
+          ],
+          "legroom": "29 in",
+          "extensions": [
+            "Below average legroom (29 in)",
+            "Wi-Fi for a fee",
+            "In-seat USB outlet",
+            "Carbon emissions estimate: 48 kg"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 20:10"
+          },
+          "arrival_airport": {
+            "name": "Hamad International Airport",
+            "id": "DOH",
+            "time": "2026-12-18 05:55"
+          },
+          "duration": 405,
+          "airplane": "Boeing 777",
+          "airline": "Qatar Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/QR.png",
+          "travel_class": "Economy",
+          "flight_number": "QR 106",
+          "ticket_also_sold_by": [
+            "British Airways"
+          ],
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 395 kg"
+          ],
+          "overnight": true
+        },
+        {
+          "departure_airport": {
+            "name": "Hamad International Airport",
+            "id": "DOH",
+            "time": "2026-12-18 21:15"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-19 01:35"
+          },
+          "duration": 140,
+          "airplane": "Boeing 787",
+          "airline": "Qatar Airways",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/QR.png",
+          "travel_class": "Economy",
+          "flight_number": "QR 604",
+          "ticket_also_sold_by": [
+            "British Airways"
+          ],
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 127 kg"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 140,
+          "name": "Heathrow Airport",
+          "id": "LHR"
+        },
+        {
+          "duration": 920,
+          "name": "Hamad International Airport",
+          "id": "DOH"
+        }
+      ],
+      "total_duration": 1680,
+      "carbon_emissions": {
+        "this_flight": 572000,
+        "typical_for_this_route": 557000,
+        "difference_percent": 3
+      },
+      "price": 1459,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFaEpDUVRFek16VjhVVkl4TURaOFVWSTJNRFFhQ3dqaTh3Z1FBaG9EUjBKUU9CeHdodDhMIixbWyJOQ0wiLCIyMDI2LTEyLTE3IiwiTEhSIixudWxsLCJCQSIsIjEzMzUiXSxbIkxIUiIsIjIwMjYtMTItMTciLCJET0giLG51bGwsIlFSIiwiMTA2Il0sWyJET0giLCIyMDI2LTEyLTE4IiwiS0hJIixudWxsLCJRUiIsIjYwNCJdXV0="
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 07:04"
+          },
+          "arrival_airport": {
+            "name": "York (YRK)",
+            "id": "QQY",
+            "time": "2026-12-17 08:01"
+          },
+          "duration": 57,
+          "airplane": "Train",
+          "airline": "AccesRail",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/9B.png",
+          "travel_class": "Business Class",
+          "flight_number": "9B 6783",
+          "ticket_also_sold_by": [
+            "Etihad"
+          ],
+          "extensions": [
+            "Carbon emissions estimate: 2 kg"
+          ],
+          "plane_and_crew_by": "London North Eastern Rail for Accesrail Inc"
+        },
+        {
+          "departure_airport": {
+            "name": "York (YRK)",
+            "id": "QQY",
+            "time": "2026-12-17 08:04"
+          },
+          "arrival_airport": {
+            "name": "London Kings Cross Railway Station",
+            "id": "QQK",
+            "time": "2026-12-17 10:03"
+          },
+          "duration": 119,
+          "airplane": "Train",
+          "airline": "AccesRail",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/9B.png",
+          "travel_class": "Business Class",
+          "flight_number": "9B 6783",
+          "ticket_also_sold_by": [
+            "Etihad"
+          ],
+          "extensions": [
+            "Carbon emissions estimate: 5 kg"
+          ],
+          "plane_and_crew_by": "London North Eastern Rail for Accesrail Inc"
+        },
+        {
+          "departure_airport": {
+            "name": "London Kings Cross Railway Station",
+            "id": "QQK",
+            "time": "2026-12-17 10:30"
+          },
+          "arrival_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 11:30"
+          },
+          "duration": 60,
+          "airplane": "Train",
+          "airline": "AccesRail",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/9B.png",
+          "travel_class": "Business Class",
+          "flight_number": "9B 6783",
+          "ticket_also_sold_by": [
+            "Etihad"
+          ],
+          "extensions": [
+            "Carbon emissions estimate: 0 kg"
+          ],
+          "plane_and_crew_by": "London North Eastern Rail for Accesrail Inc"
+        },
+        {
+          "departure_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 13:55"
+          },
+          "arrival_airport": {
+            "name": "Zayed International Airport",
+            "id": "AUH",
+            "time": "2026-12-18 00:50"
+          },
+          "duration": 415,
+          "airplane": "Airbus A380",
+          "airline": "Etihad",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EY.png",
+          "travel_class": "Business Class",
+          "flight_number": "EY 64",
+          "extensions": [
+            "Lie flat seat",
+            "Free Wi-Fi",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 1573 kg"
+          ],
+          "often_delayed_by_over_30_min": true
+        },
+        {
+          "departure_airport": {
+            "name": "Zayed International Airport",
+            "id": "AUH",
+            "time": "2026-12-18 07:55"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-18 11:00"
+          },
+          "duration": 125,
+          "airplane": "Airbus A320",
+          "airline": "Etihad",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EY.png",
+          "travel_class": "Business Class",
+          "flight_number": "EY 292",
+          "extensions": [
+            "Extra reclining seat",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 194 kg"
+          ],
+          "plane_and_crew_by": "Getjet Airlines for Etihad Airways"
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 3,
+          "name": "York (YRK)",
+          "id": "QQY"
+        },
+        {
+          "duration": 27,
+          "name": "London Kings Cross Railway Station",
+          "id": "QQK"
+        },
+        {
+          "duration": 145,
+          "name": "Heathrow Airport",
+          "id": "LHR"
+        },
+        {
+          "duration": 425,
+          "name": "Zayed International Airport",
+          "id": "AUH"
+        }
+      ],
+      "total_duration": 1376,
+      "carbon_emissions": {
+        "this_flight": 1776000,
+        "typical_for_this_route": 557000,
+        "difference_percent": 219
+      },
+      "price": 2389,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFaDg1UWpZM09ETjhPVUkyTnpnemZEbENOamM0TTN4RldUWTBmRVZaTWpreUdnc0lzOG9PRUFJYUEwZENVRGdjY0tPZEV3PT0iLFtbIk5DTCIsIjIwMjYtMTItMTciLCJRUVkiLG51bGwsIjlCIiwiNjc4MyJdLFsiUVFZIiwiMjAyNi0xMi0xNyIsIlFRSyIsbnVsbCwiOUIiLCI2NzgzIl0sWyJRUUsiLCIyMDI2LTEyLTE3IiwiTEhSIixudWxsLCI5QiIsIjY3ODMiXSxbIkxIUiIsIjIwMjYtMTItMTciLCJBVUgiLG51bGwsIkVZIiwiNjQiXSxbIkFVSCIsIjIwMjYtMTItMTgiLCJLSEkiLG51bGwsIkVZIiwiMjkyIl1dXQ=="
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "Newcastle International Airport",
+            "id": "NCL",
+            "time": "2026-12-17 12:58"
+          },
+          "arrival_airport": {
+            "name": "York (YRK)",
+            "id": "QQY",
+            "time": "2026-12-17 13:52"
+          },
+          "duration": 54,
+          "airplane": "Train",
+          "airline": "AccesRail",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/9B.png",
+          "travel_class": "Economy",
+          "flight_number": "9B 6678",
+          "ticket_also_sold_by": [
+            "Etihad"
+          ],
+          "extensions": [
+            "Carbon emissions estimate: 2 kg"
+          ],
+          "plane_and_crew_by": "London North Eastern Rail for Accesrail Inc"
+        },
+        {
+          "departure_airport": {
+            "name": "York (YRK)",
+            "id": "QQY",
+            "time": "2026-12-17 13:55"
+          },
+          "arrival_airport": {
+            "name": "London Kings Cross Railway Station",
+            "id": "QQK",
+            "time": "2026-12-17 16:02"
+          },
+          "duration": 127,
+          "airplane": "Train",
+          "airline": "AccesRail",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/9B.png",
+          "travel_class": "Economy",
+          "flight_number": "9B 6678",
+          "ticket_also_sold_by": [
+            "Etihad"
+          ],
+          "extensions": [
+            "Carbon emissions estimate: 5 kg"
+          ],
+          "plane_and_crew_by": "London North Eastern Rail for Accesrail Inc"
+        },
+        {
+          "departure_airport": {
+            "name": "London Kings Cross Railway Station",
+            "id": "QQK",
+            "time": "2026-12-17 16:30"
+          },
+          "arrival_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 17:30"
+          },
+          "duration": 60,
+          "airplane": "Train",
+          "airline": "AccesRail",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/9B.png",
+          "travel_class": "Economy",
+          "flight_number": "9B 6678",
+          "ticket_also_sold_by": [
+            "Etihad"
+          ],
+          "extensions": [
+            "Carbon emissions estimate: 0 kg"
+          ],
+          "plane_and_crew_by": "London North Eastern Rail for Accesrail Inc"
+        },
+        {
+          "departure_airport": {
+            "name": "Heathrow Airport",
+            "id": "LHR",
+            "time": "2026-12-17 19:20"
+          },
+          "arrival_airport": {
+            "name": "Zayed International Airport",
+            "id": "AUH",
+            "time": "2026-12-18 06:10"
+          },
+          "duration": 410,
+          "airplane": "Airbus A380",
+          "airline": "Etihad",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EY.png",
+          "travel_class": "Economy",
+          "flight_number": "EY 66",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)",
+            "Wi-Fi for a fee",
+            "In-seat power & USB outlets",
+            "On-demand video",
+            "Carbon emissions estimate: 393 kg"
+          ],
+          "overnight": true
+        },
+        {
+          "departure_airport": {
+            "name": "Zayed International Airport",
+            "id": "AUH",
+            "time": "2026-12-18 07:55"
+          },
+          "arrival_airport": {
+            "name": "Jinnah International Airport",
+            "id": "KHI",
+            "time": "2026-12-18 11:00"
+          },
+          "duration": 125,
+          "airplane": "Airbus A320",
+          "airline": "Etihad",
+          "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/EY.png",
+          "travel_class": "Economy",
+          "flight_number": "EY 292",
+          "legroom": "30 in",
+          "extensions": [
+            "Average legroom (30 in)",
+            "In-seat USB outlet",
+            "Stream media to your device",
+            "Carbon emissions estimate: 129 kg"
+          ],
+          "plane_and_crew_by": "Getjet Airlines for Etihad Airways"
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 3,
+          "name": "York (YRK)",
+          "id": "QQY"
+        },
+        {
+          "duration": 28,
+          "name": "London Kings Cross Railway Station",
+          "id": "QQK"
+        },
+        {
+          "duration": 110,
+          "name": "Heathrow Airport",
+          "id": "LHR"
+        },
+        {
+          "duration": 105,
+          "name": "Zayed International Airport",
+          "id": "AUH"
+        }
+      ],
+      "total_duration": 1022,
+      "carbon_emissions": {
+        "this_flight": 531000,
+        "typical_for_this_route": 557000,
+        "difference_percent": -5
+      },
+      "price": 2515,
+      "type": "One way",
+      "airline_logo": "https://www.gstatic.com/flights/airline_logos/70px/multi.png",
+      "booking_token": "WyJDalJJYjA1eFJUVldOWEprT1dkQlFtTTBRa0ZDUnkwdExTMHRMUzB0ZVdsaVkyY3lOMEZCUVVGQlIzSTRUalJyU0RSSWJrZEJFaDg1UWpZMk56aDhPVUkyTmpjNGZEbENOalkzT0h4RldUWTJmRVZaTWpreUdnc0k2NndQRUFJYUEwZENVRGdjY0l1ZkZBPT0iLFtbIk5DTCIsIjIwMjYtMTItMTciLCJRUVkiLG51bGwsIjlCIiwiNjY3OCJdLFsiUVFZIiwiMjAyNi0xMi0xNyIsIlFRSyIsbnVsbCwiOUIiLCI2Njc4Il0sWyJRUUsiLCIyMDI2LTEyLTE3IiwiTEhSIixudWxsLCI5QiIsIjY2NzgiXSxbIkxIUiIsIjIwMjYtMTItMTciLCJBVUgiLG51bGwsIkVZIiwiNjYiXSxbIkFVSCIsIjIwMjYtMTItMTgiLCJLSEkiLG51bGwsIkVZIiwiMjkyIl1dXQ=="
+    }
+  ],
+  "price_insights": {
+    "lowest_price": 748,
+    "price_level": "typical",
+    "typical_price_range": [
+      445,
+      780
+    ],
+    "price_history": [
+      [
+        1792278000,
+        813
+      ],
+      [
+        1792364400,
+        813
+      ],
+      [
+        1792450800,
+        676
+      ],
+      [
+        1792537200,
+        676
+      ],
+      [
+        1792623600,
+        813
+      ],
+      [
+        1792710000,
+        813
+      ],
+      [
+        1792796400,
+        813
+      ],
+      [
+        1792882800,
+        690
+      ],
+      [
+        1792972800,
+        690
+      ],
+      [
+        1793059200,
+        737
+      ],
+      [
+        1793145600,
+        737
+      ],
+      [
+        1793232000,
+        737
+      ],
+      [
+        1793318400,
+        737
+      ],
+      [
+        1793404800,
+        737
+      ],
+      [
+        1793491200,
+        813
+      ],
+      [
+        1793577600,
+        813
+      ],
+      [
+        1793664000,
+        813
+      ],
+      [
+        1793750400,
+        813
+      ],
+      [
+        1793836800,
+        813
+      ],
+      [
+        1793923200,
+        813
+      ],
+      [
+        1794009600,
+        813
+      ],
+      [
+        1794096000,
+        813
+      ],
+      [
+        1794182400,
+        813
+      ],
+      [
+        1794268800,
+        813
+      ],
+      [
+        1794355200,
+        813
+      ],
+      [
+        1794441600,
+        813
+      ],
+      [
+        1794528000,
+        813
+      ],
+      [
+        1794614400,
+        813
+      ],
+      [
+        1794700800,
+        813
+      ],
+      [
+        1794787200,
+        813
+      ],
+      [
+        1794873600,
+        748
+      ]
+    ]
+  },
+  "airports": [
+    {
+      "departure": [
+        {
+          "airport": {
+            "id": "NCL",
+            "name": "Newcastle International Airport"
+          },
+          "city": "Newcastle upon Tyne",
+          "country": "United Kingdom",
+          "country_code": "GB",
+          "image": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTll6VFTT0o0ZOKXfI2BRir1hP4yMV9TwACwXd6Ap09gaXwdEq97gr53RgT66hj6zZiqzGCWr-2uMtenw",
+          "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSeBNn-WQO4qrkHsOiyHQwy0-dp32vt_sjsU-7tmInGj5S_gwH2iRDdcvtg4gvv2CBWaeycW4vVh_RfoqT63C7TFaeNVLEaHAwUPudPbIU"
+        }
+      ],
+      "arrival": [
+        {
+          "airport": {
+            "id": "KHI",
+            "name": "Jinnah International Airport"
+          },
+          "city": "Karachi",
+          "country": "Pakistan",
+          "country_code": "PK",
+          "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSTRWvWM08EzPR06ONmd9A6jGIHUCpoDaOMyrxQqkSTF9X8V1haOjy4Z1gUcpOxgR9fuc1g6fFvfbPBew",
+          "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSVZgSeD37LtJ7PsxIAQ4d4QUbVzkjF7PF5oaE8KuGq5DEJhWbIMzWf-0Nk0aXtPyxR85tmWtD9vbXRniM6ti0ncBr8mWk7kRPpwrH6OGw"
+        }
+      ]
+    }
+  ]
+}

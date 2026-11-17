@@ -44,7 +44,7 @@ Results fill in as they arrive. The status line shows progress ("Loading 23 of 7
 
 | Provider | Cost | Notes |
 | --- | --- | --- |
-| [fast-flights](https://github.com/AWeirdDev/fast-flights) 3.1.0 (default) | Free | Unofficial Google Flights scraper, one request per UK airport per day. No flight numbers, baggage or self-transfer info. |
+| [fast-flights](https://github.com/AWeirdDev/fast-flights) 3.1.0 (default) | Free | Unofficial Google Flights scraper, one request per UK airport per day. Includes flight numbers. No baggage or self-transfer info. |
 | [SerpApi](https://serpapi.com/google-flights-api) (optional) | 250 searches/month free | Richer data. Searches a whole city group in one request. Usage is tracked and never exceeds the cap (default 230). |
 
 Provider modes:
@@ -53,9 +53,15 @@ Provider modes:
 - `fast_flights`: fast-flights only.
 - `serpapi`: SerpApi only.
 
-In SerpApi mode the other cities are filled by **overview** queries, which batch up to 7 airports per request (`SERPAPI_BATCH_MAX_AIRPORTS`). If SerpApi rejects a batch as too large, the batch size is halved and the lower size is remembered. The selected city gets a complete **detail** query per day.
+In SerpApi mode the other cities are filled by **overview** queries, which batch up to 7 airports per request (`SERPAPI_BATCH_MAX_AIRPORTS`). If SerpApi rejects a batch as too large, the batch size is halved and the lower size is remembered. The selected city gets a complete **detail** query per day. SerpApi accepted 8 airports in testing, so 7 is a conservative default. Overview results really are partial: in a 7-airport test, Luton was crowded out.
 
-> **UK/EU network note:** Google may return a cookie-consent page instead of results. fast-flights then fails with a clear error ("Google returned a cookie-consent page…"). If that happens, use SerpApi or run from a network that isn't served the consent page.
+Switching provider mode also applies to work already queued. Switch to `serpapi` while a week is loading and the rest of that week is fetched with SerpApi.
+
+**fast-flights notes**
+
+- Google shows a cookie-consent page to UK/EU IPs. The adapter sends consent cookies (`GOOGLE_CONSENT_COOKIE=true`) so results come back instead.
+- fast-flights 3.1.0's own parser skips Google's "best flights" section and drops flight numbers, so the adapter parses the page payload itself and uses fast-flights only to build the query.
+- For some less common routes, such as Bristol or Leeds Bradford to Karachi, Google's page holds no results even though SerpApi finds itineraries (usually a coach or rail leg to a hub airport). These cities show "—" with fast-flights.
 
 ## Configuration
 
@@ -70,6 +76,7 @@ In SerpApi mode the other cities are filled by **overview** queries, which batch
 | `SERPAPI_BATCH_MAX_AIRPORTS` | `7` | Max airports per overview query |
 | `FETCH_CONCURRENCY` | `2` | Parallel fetch workers |
 | `FETCH_DELAY_SECONDS` | `1-3` | Jittered delay between requests |
+| `GOOGLE_CONSENT_COOKIE` | `true` | Send Google consent cookies with fast-flights requests |
 
 UK city groups are set in [backend/config/uk_airports.json](backend/config/uk_airports.json). Set `"enabled"` to toggle a city. Liverpool and East Midlands are off by default. Restart the server after editing.
 
@@ -79,7 +86,7 @@ UK city groups are set in [backend/config/uk_airports.json](backend/config/uk_ai
 make test       # pytest + vitest (offline, uses recorded fixtures)
 make lint       # ruff + tsc + eslint
 make smoke      # one live NCL → KHI search per provider
-make smoke ARGS=--record   # also save live responses to backend/tests/fixtures/*.live
+make smoke ARGS=--record   # re-capture the live fixtures in backend/tests/fixtures/*_live.*
 ```
 
 ```text
@@ -108,4 +115,4 @@ The unit of caching is a **route-day**: one UK airport, one foreign airport, one
 2. The selected city's other days, nearest first
 3. Every other city for the week
 
-Navigating to another view re-prioritises the queue: pending jobs from the old view are dropped and running jobs finish. Cached, unexpired data is never re-fetched unless you refresh, so reloading within the TTL makes no provider calls.
+Navigating to another view re-prioritises the queue: the new view's jobs run first. Pending jobs from up to 2 other views opened in the last 10 minutes (another tab, say) wait behind them, and older views' jobs are dropped. Running jobs always finish. Cached, unexpired data is never re-fetched unless you refresh, so reloading within the TTL makes no provider calls.
