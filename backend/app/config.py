@@ -24,6 +24,9 @@ MAX_DAYS_AHEAD = 330  # beyond this, flights are "not yet on sale"
 ERROR_CACHE_MINUTES = 15
 AUTO_FAILOVER_THRESHOLD = 3  # consecutive fast-flights failures
 AUTO_FAILOVER_MINUTES = 30
+MIN_DELAY_SECONDS = 0.1
+MAX_DELAY_SECONDS = 60.0
+MAX_BACKOFF_SECONDS = 30.0  # cap for the failure backoff added to the delay
 
 
 def parse_delay_range(value: str | list[float] | tuple[float, float]) -> tuple[float, float]:
@@ -33,8 +36,11 @@ def parse_delay_range(value: str | list[float] | tuple[float, float]) -> tuple[f
     else:
         parts = str(value).replace(" ", "").split("-")
         lo, hi = float(parts[0]), float(parts[-1])
-    if lo < 0 or hi < lo:
-        raise ValueError(f"invalid delay range: {value!r}")
+    if lo < MIN_DELAY_SECONDS or hi > MAX_DELAY_SECONDS or hi < lo:
+        raise ValueError(
+            f"delay range must satisfy {MIN_DELAY_SECONDS} <= min <= max <= "
+            f"{MAX_DELAY_SECONDS} seconds, got {value!r}"
+        )
     return lo, hi
 
 
@@ -49,7 +55,7 @@ class EnvSettings(BaseSettings):
     serpapi_monthly_cap: int = Field(default=230, ge=0)
     serpapi_batch_max_airports: int = Field(default=7, ge=1)
     fetch_concurrency: int = Field(default=2, ge=1, le=8)
-    fetch_delay_seconds: str = "1-3"
+    fetch_delay_seconds: str = "0.5-1"
     google_consent_cookie: bool = True
     db_path: Path = DATA_DIR / "flights.db"
 

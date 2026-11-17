@@ -15,7 +15,7 @@ from .providers.base import FlightProvider
 from .providers.fast_flights import FastFlightsProvider
 from .providers.serpapi import SerpApiProvider
 from .summary import SummaryBuilder
-from .uk_groups import enabled_groups
+from .uk_groups import GroupStore, load_groups
 
 
 @dataclass
@@ -28,7 +28,12 @@ class AppState:
     providers: ProviderManager
     fetcher: Fetcher
     summaries: SummaryBuilder
-    groups: tuple[UKGroup, ...]
+    group_store: GroupStore
+
+    @property
+    def groups(self) -> tuple[UKGroup, ...]:
+        """Currently enabled UK groups."""
+        return self.group_store.enabled()
 
     @classmethod
     def build(
@@ -45,7 +50,7 @@ class AppState:
         settings = SettingsStore(db, env)
         usage = UsageStore(db)
         bus = EventBus()
-        groups = groups if groups is not None else enabled_groups()
+        group_store = GroupStore(settings, groups if groups is not None else load_groups())
         serp = serpapi or SerpApiProvider(
             env.serpapi_api_key,
             reserve=lambda: usage.try_reserve(settings.get().serpapi_monthly_cap),
@@ -63,7 +68,7 @@ class AppState:
             settings,
             providers,
             bus,
-            groups,
+            group_store.enabled(),
             default_batch_size=env.serpapi_batch_max_airports,
             **kwargs,
         )
@@ -76,7 +81,7 @@ class AppState:
             providers=providers,
             fetcher=fetcher,
             summaries=SummaryBuilder(cache),
-            groups=groups,
+            group_store=group_store,
         )
 
 

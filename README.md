@@ -38,7 +38,7 @@ Results fill in as they arrive. The status line shows progress ("Loading 23 of 7
 | hatched cell | Date is in the past, or not yet on sale (more than ~330 days out) |
 
 **⟳ menu**: Refresh week, Refresh all cache (marks everything expired, then re-fetches the view), Clear cache.
-**⚙ settings**: cache expiry (1–5 days), provider mode, SerpApi cap and usage, concurrency and request delay. Changing expiry doesn't re-fetch anything. It only changes when entries count as expired.
+**⚙ settings**: cache expiry (1–5 days), provider mode, SerpApi cap and usage, concurrency, request delay (in ms, minimum 100) and which UK cities to include. Changing expiry doesn't re-fetch anything. It only changes when entries count as expired. Enabling or disabling a city updates the sidebar and heatmap straight away.
 
 ## Data providers
 
@@ -75,10 +75,10 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 | `SERPAPI_MONTHLY_CAP` | `230` | Hard cap, never exceeded |
 | `SERPAPI_BATCH_MAX_AIRPORTS` | `7` | Max airports per overview query |
 | `FETCH_CONCURRENCY` | `2` | Parallel fetch workers |
-| `FETCH_DELAY_SECONDS` | `1-3` | Jittered delay between requests |
+| `FETCH_DELAY_SECONDS` | `0.5-1` | Random delay between requests, in seconds (0.1–60). Doubles per consecutive fast-flights failure, up to 30 s. |
 | `GOOGLE_CONSENT_COOKIE` | `true` | Send Google consent cookies with fast-flights requests |
 
-UK city groups are set in [backend/config/uk_airports.json](backend/config/uk_airports.json). Set `"enabled"` to toggle a city. Liverpool and East Midlands are off by default. Restart the server after editing.
+UK city groups and their airports are defined in [backend/config/uk_airports.json](backend/config/uk_airports.json), and its `"enabled"` values are the defaults. Turn cities on or off in ⚙ settings; that choice is saved in the database and overrides the JSON. Edit the JSON (and restart) only to add a city or change its airports. Liverpool and East Midlands are off by default.
 
 ## Development
 

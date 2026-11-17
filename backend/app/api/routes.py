@@ -18,6 +18,7 @@ from ..models import (
     RefreshRequest,
     SettingsUpdate,
     UKGroup,
+    UKGroupsUpdate,
     WeekFlightsResponse,
     WeekSummary,
 )
@@ -45,8 +46,19 @@ def airports(q: Annotated[str, Query(min_length=1, max_length=64)]) -> list[Airp
 
 
 @router.get("/uk-groups")
-def uk_groups(state: State) -> list[UKGroup]:
-    return list(state.groups)
+def uk_groups(state: State, include_disabled: bool = False) -> list[UKGroup]:
+    return state.group_store.all() if include_disabled else list(state.groups)
+
+
+@router.put("/uk-groups")
+def set_uk_groups(state: State, body: UKGroupsUpdate) -> list[UKGroup]:
+    """Enable exactly the given groups (all others are disabled)."""
+    try:
+        groups = state.group_store.set_enabled(body.enabled)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    state.fetcher.set_groups(state.groups)
+    return groups
 
 
 # ---------------------------------------------------------------------- flights

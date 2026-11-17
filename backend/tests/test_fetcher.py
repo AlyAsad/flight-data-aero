@@ -228,3 +228,23 @@ class TestWorkers:
 
 def test_make_flight_helper():
     assert make_flight("NCL", "KHI", CENTER, 1).price_gbp == 1
+
+
+class TestDelay:
+    def test_delay_within_configured_range(self, fetcher, settings):
+        settings.save(settings.get().model_copy(update={"delay_seconds": (0.1, 0.2)}))
+        assert all(0.1 <= fetcher.delay_seconds() <= 0.2 for _ in range(50))
+
+    def test_backs_off_after_fast_flights_failures(self, fetcher, settings, providers):
+        settings.save(settings.get().model_copy(update={"delay_seconds": (0.5, 0.5)}))
+        providers.consecutive_ff_failures = 2
+        assert fetcher.delay_seconds() == 2.0
+        providers.consecutive_ff_failures = 20
+        assert fetcher.delay_seconds() == 30.0
+
+
+def test_set_groups_drops_pending_jobs(fetcher):
+    fetcher.plan_view(FROM, "KHI", CENTER, "NCL")
+    fetcher.set_groups([g for g in GROUPS if g.id != "LON"])
+    assert all(k.group_id != "LON" for k in fetcher.queued_keys())
+    assert fetcher.progress.total == 7 * 2

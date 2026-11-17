@@ -88,9 +88,11 @@ def test_unknown_group_404(client):
 
 def test_settings_roundtrip_and_validation(client):
     assert client.get("/api/settings").json()["ttl_days"] == 2
-    res = client.put("/api/settings", json={"ttl_days": 4, "delay_seconds": "0-1"})
+    res = client.put("/api/settings", json={"ttl_days": 4, "delay_seconds": [0.1, 0.25]})
     assert res.status_code == 200
-    assert res.json()["ttl_days"] == 4 and res.json()["delay_seconds"] == [0, 1]
+    assert res.json()["ttl_days"] == 4 and res.json()["delay_seconds"] == [0.1, 0.25]
+    assert client.put("/api/settings", json={"delay_seconds": [0, 1]}).status_code == 422
+    assert client.put("/api/settings", json={"delay_seconds": [2, 1]}).status_code == 422
     assert client.put("/api/settings", json={"ttl_days": 9}).status_code == 422
     assert client.put("/api/settings", json={"provider_mode": "bogus"}).status_code == 422
 
@@ -133,3 +135,39 @@ def test_status(client):
     s = client.get("/api/status").json()
     assert s["active_provider"] == "fast_flights"
     assert s["serpapi_usage"] == {"used": 0, "cap": 230}
+
+
+def test_default_delay_is_half_to_one_second(env):
+    from app.cache import Database, SettingsStore
+
+    assert SettingsStore(Database(env.db_path), env).get().delay_seconds == (0.5, 1.0)
+
+
+def test_toggle_uk_groups(client):
+    all_groups = client.get("/api/uk-groups", params={"include_disabled": True}).json()
+    assert [g["enabled"] for g in all_groups] == [True, True, True]
+
+    res = client.put("/api/uk-groups", json={"enabled": ["LON", "NCL"]})
+    assert res.status_code == 200
+    assert {g["id"]: g["enabled"] for g in res.json()} == {"LON": True, "MAN": False, "NCL": True}
+    assert [g["id"] for g in client.get("/api/uk-groups").json()] == ["LON", "NCL"]
+
+    params = {
+        "direction": "from_uk",
+        "foreign": "KHI",
+        "center_date": CENTER,
+        "selected_group": "NCL",
+    }
+    week = client.get("/api/week", params=params).json()
+    assert [g["group_id"] for g in week["groups"]] == ["LON", "NCL"]
+    assert all(k.group_id != "MAN" for k in client.state.fetcher.queued_keys())
+    assert (
+        client.get(
+            "/api/flights",
+            params={"direction": "from_uk", "foreign": "KHI", "group": "MAN", "date": CENTER},
+        ).status_code
+        == 404
+    )
+
+    assert client.put("/api/uk-groups", json={"enabled": []}).status_code == 422
+    assert client.put("/api/uk-groups", json={"enabled": ["XXX"]}).status_code == 422

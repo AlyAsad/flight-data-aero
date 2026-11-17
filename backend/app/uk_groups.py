@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from functools import lru_cache
+from collections.abc import Sequence
 from pathlib import Path
 
+from .cache import SettingsStore
 from .config import UK_AIRPORTS_CONFIG
 from .models import UKGroup
 
@@ -20,20 +21,42 @@ def load_groups(path: Path = UK_AIRPORTS_CONFIG) -> list[UKGroup]:
     return groups
 
 
-@lru_cache
-def enabled_groups() -> tuple[UKGroup, ...]:
-    return tuple(g for g in load_groups() if g.enabled)
+class GroupStore:
+    """UK groups from the JSON config, with enabled flags overridable from the UI.
 
+    Overrides live in SQLite (`settings` table) so the tracked config file is
+    never rewritten; the JSON `enabled` values are the defaults.
+    """
 
-def get_group(group_id: str) -> UKGroup | None:
-    return next((g for g in enabled_groups() if g.id == group_id), None)
+    KEY = "uk_group_enabled"
 
+    def __init__(self, settings: SettingsStore, base: Sequence[UKGroup]):
+        self._settings = settings
+        self._base = list(base)
 
-def group_for_airport(airport: str, groups: tuple[UKGroup, ...] | None = None) -> UKGroup | None:
-    for g in groups if groups is not None else enabled_groups():
-        if airport in g.airports:
-            return g
-    return None
+    def _overrides(self) -> dict[str, bool]:
+        raw = self._settings.get_value(self.KEY)
+        return json.loads(raw) if raw else {}
+
+    def all(self) -> list[UKGroup]:
+        overrides = self._overrides()
+        return [
+            g.model_copy(update={"enabled": overrides.get(g.id, g.enabled)}) for g in self._base
+        ]
+
+    def enabled(self) -> tuple[UKGroup, ...]:
+        return tuple(g for g in self.all() if g.enabled)
+
+    def set_enabled(self, enabled_ids: Sequence[str]) -> list[UKGroup]:
+        known = {g.id for g in self._base}
+        unknown = set(enabled_ids) - known
+        if unknown:
+            raise ValueError(f"unknown UK group(s): {', '.join(sorted(unknown))}")
+        if not enabled_ids:
+            raise ValueError("at least one UK group must be enabled")
+        wanted = set(enabled_ids)
+        self._settings.set_value(self.KEY, json.dumps({g.id: g.id in wanted for g in self._base}))
+        return self.all()
 
 
 def pack_batches(

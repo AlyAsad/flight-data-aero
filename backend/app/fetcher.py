@@ -23,7 +23,12 @@ from datetime import date, datetime, timedelta
 from itertools import count
 
 from .cache import CacheEntry, FlightCache, RouteKey, SettingsStore, UsageStore, utcnow
-from .config import AUTO_FAILOVER_MINUTES, AUTO_FAILOVER_THRESHOLD, ERROR_CACHE_MINUTES
+from .config import (
+    AUTO_FAILOVER_MINUTES,
+    AUTO_FAILOVER_THRESHOLD,
+    ERROR_CACHE_MINUTES,
+    MAX_BACKOFF_SECONDS,
+)
 from .dates import is_fetchable, week_dates
 from .events import EventBus
 from .models import Completeness, Direction, FlightOption, ProviderMode, UKGroup
@@ -214,8 +219,8 @@ class Fetcher:
         self._settings = settings
         self.providers = providers
         self._bus = bus
-        self._groups = list(groups)
-        self._group_order = {g.id: i for i, g in enumerate(self._groups)}
+        self._groups: list[UKGroup] = []
+        self._group_order: dict[str, int] = {}
         self._default_batch_size = default_batch_size
         self._sleep = sleep
         self._pending: dict[JobKey, Job] = {}
@@ -226,6 +231,7 @@ class Fetcher:
         self._workers: dict[int, asyncio.Task] = {}
         self._target_workers = 0
         self.progress = ProgressCounter()
+        self.set_groups(groups)
 
     # ------------------------------------------------------------------ lifecycle
 
@@ -247,6 +253,14 @@ class Fetcher:
             if task is None or task.done():
                 self._workers[idx] = asyncio.create_task(self._worker(idx), name=f"fetch-{idx}")
         self._wakeup.set()  # let surplus workers notice and exit
+
+    def set_groups(self, groups: Sequence[UKGroup]) -> None:
+        """Replace the enabled UK groups; pending jobs for removed groups are dropped."""
+        self._groups = list(groups)
+        self._group_order = {g.id: i for i, g in enumerate(self._groups)}
+        self._pending = {k: j for k, j in self._pending.items() if k.group_id in self._group_order}
+        self._recount_progress()
+        self._publish_queue()
 
     # ------------------------------------------------------------------ batches
 
@@ -435,9 +449,21 @@ class Fetcher:
                 self.progress.done += job.planned_route_days
                 self._publish_queue()
 
-    async def _delay(self) -> None:
+    def delay_seconds(self) -> float:
+        """Jittered delay before the next request.
+
+        After consecutive fast-flights failures the delay doubles per failure
+        (capped), so a rate-limited scraper backs off instead of hammering Google.
+        """
         lo, hi = self._settings.get().delay_seconds
-        await self._sleep(random.uniform(lo, hi))
+        delay = random.uniform(lo, hi)
+        failures = self.providers.consecutive_ff_failures
+        if failures:
+            delay = min(delay * 2**failures, max(MAX_BACKOFF_SECONDS, hi))
+        return delay
+
+    async def _delay(self) -> None:
+        await self._sleep(self.delay_seconds())
 
     async def _run_job(self, job: Job) -> None:
         airports = self._airports_needing_fetch(job)

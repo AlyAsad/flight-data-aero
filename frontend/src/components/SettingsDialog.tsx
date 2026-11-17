@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { useSettings, useStatus } from "../hooks/queries";
+import { useAllUkGroups, useSettings, useStatus } from "../hooks/queries";
 import { api } from "../lib/api";
 import type { AppSettings, ProviderMode } from "../lib/types";
 
@@ -8,6 +8,20 @@ interface Props {
   open: boolean;
   onClose: () => void;
 }
+
+/** Delay limits, matching backend validation (0.1–60 s). */
+export const MIN_DELAY_MS = 100;
+export const MAX_DELAY_MS = 60_000;
+
+export function validateDelayMs(minMs: number, maxMs: number): string | null {
+  if (!Number.isFinite(minMs) || !Number.isFinite(maxMs)) return "Enter both delays in milliseconds.";
+  if (minMs < MIN_DELAY_MS) return `Minimum delay is ${MIN_DELAY_MS} ms.`;
+  if (maxMs > MAX_DELAY_MS) return `Maximum delay is ${MAX_DELAY_MS} ms.`;
+  if (maxMs < minMs) return "The 'to' delay must be at least the 'from' delay.";
+  return null;
+}
+
+const toMs = (s: number) => Math.round(s * 1000);
 
 const MODES: { value: ProviderMode; label: string; help: string }[] = [
   { value: "auto", label: "Auto", help: "fast-flights first; SerpApi for 30 min after 3 failures (if a key is set)." },
@@ -21,6 +35,9 @@ export function SettingsDialog({ open, onClose }: Props) {
   const { data: settings } = useSettings();
   const { data: status } = useStatus();
   const [draft, setDraft] = useState<AppSettings | null>(null);
+  const [delayMs, setDelayMs] = useState<[number, number]>([500, 1000]);
+  const { data: allGroups } = useAllUkGroups(open);
+  const [enabledGroups, setEnabledGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const d = ref.current;
@@ -30,19 +47,46 @@ export function SettingsDialog({ open, onClose }: Props) {
   }, [open]);
 
   useEffect(() => {
-    if (open && settings) setDraft(settings);
+    if (open && settings) {
+      setDraft(settings);
+      setDelayMs([toMs(settings.delay_seconds[0]), toMs(settings.delay_seconds[1])]);
+    }
   }, [open, settings]);
 
+  useEffect(() => {
+    if (open && allGroups) setEnabledGroups(new Set(allGroups.filter((g) => g.enabled).map((g) => g.id)));
+  }, [open, allGroups]);
+
+  const delayError = validateDelayMs(delayMs[0], delayMs[1]);
+  const groupsError = enabledGroups.size === 0 ? "Enable at least one UK city." : null;
+  const groupsChanged =
+    !!allGroups && allGroups.some((g) => g.enabled !== enabledGroups.has(g.id));
+
   const save = useMutation({
-    mutationFn: api.putSettings,
+    mutationFn: async (s: AppSettings) => {
+      const saved = await api.putSettings({ ...s, delay_seconds: [delayMs[0] / 1000, delayMs[1] / 1000] });
+      if (groupsChanged && allGroups) {
+        await api.setUkGroups(allGroups.filter((g) => enabledGroups.has(g.id)).map((g) => g.id));
+      }
+      return saved;
+    },
     onSuccess: (s) => {
       qc.setQueryData(["settings"], s);
+      void qc.invalidateQueries({ queryKey: ["uk-groups"] });
       void qc.invalidateQueries({ queryKey: ["status"] });
-      void qc.invalidateQueries({ queryKey: ["week"] }); // expiry times may have changed
+      void qc.invalidateQueries({ queryKey: ["week"] }); // expiry times / cities may have changed
       void qc.invalidateQueries({ queryKey: ["flights"] });
       onClose();
     },
   });
+
+  const toggleGroup = (id: string) =>
+    setEnabledGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const set = <K extends keyof AppSettings>(k: K, v: AppSettings[K]) =>
     setDraft((d) => (d ? { ...d, [k]: v } : d));
@@ -54,7 +98,7 @@ export function SettingsDialog({ open, onClose }: Props) {
       ref={ref}
       onClose={onClose}
       onCancel={onClose}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg p-0 shadow-xl backdrop:bg-slate-900/40"
+      className="m-auto max-h-[90vh] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-lg p-0 shadow-xl backdrop:bg-slate-900/40"
     >
       {draft && (
         <form
@@ -140,31 +184,60 @@ export function SettingsDialog({ open, onClose }: Props) {
               />
               <span className="text-xs text-slate-500">Parallel requests</span>
             </label>
-            <label className="col-span-2 block text-sm">
-              <span className="font-medium">Delay between requests (seconds)</span>
+            <div className="col-span-2 text-sm">
+              <span className="font-medium">Delay between requests</span>
               <span className="mt-1 flex items-center gap-2">
                 <input
                   type="number"
-                  min={0}
-                  step={0.5}
-                  aria-label="Minimum delay"
-                  value={draft.delay_seconds[0]}
-                  onChange={(e) => set("delay_seconds", [Number(e.target.value), draft.delay_seconds[1]])}
+                  min={MIN_DELAY_MS}
+                  max={MAX_DELAY_MS}
+                  step={50}
+                  aria-label="Minimum delay (ms)"
+                  value={delayMs[0]}
+                  onChange={(e) => setDelayMs([e.target.valueAsNumber, delayMs[1]])}
                   className="w-24 rounded border border-slate-300 px-2 py-1"
                 />
                 to
                 <input
                   type="number"
-                  min={0}
-                  step={0.5}
-                  aria-label="Maximum delay"
-                  value={draft.delay_seconds[1]}
-                  onChange={(e) => set("delay_seconds", [draft.delay_seconds[0], Number(e.target.value)])}
+                  min={MIN_DELAY_MS}
+                  max={MAX_DELAY_MS}
+                  step={50}
+                  aria-label="Maximum delay (ms)"
+                  value={delayMs[1]}
+                  onChange={(e) => setDelayMs([delayMs[0], e.target.valueAsNumber])}
                   className="w-24 rounded border border-slate-300 px-2 py-1"
                 />
+                ms
               </span>
-            </label>
+              <span className="block text-xs text-slate-500">
+                A random delay in this range is used for each request (minimum {MIN_DELAY_MS} ms). It doubles
+                after each fast-flights failure, up to 30 s.
+              </span>
+              {delayError && <span className="block text-xs text-rose-600">{delayError}</span>}
+            </div>
           </div>
+
+          <fieldset>
+            <legend className="text-sm font-medium">UK cities</legend>
+            <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1">
+              {allGroups?.map((g) => (
+                <label key={g.id} className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={enabledGroups.has(g.id)}
+                    onChange={() => toggleGroup(g.id)}
+                    className="mt-1 accent-sky-600"
+                  />
+                  <span>
+                    {g.name}
+                    <span className="block text-xs text-slate-500">{g.airports.join(", ")}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {groupsError && <p className="mt-1 text-xs text-rose-600">{groupsError}</p>}
+          </fieldset>
 
           {save.error && <p className="text-sm text-rose-600">Could not save: {save.error.message}</p>}
 
@@ -174,7 +247,7 @@ export function SettingsDialog({ open, onClose }: Props) {
             </button>
             <button
               type="submit"
-              disabled={save.isPending}
+              disabled={save.isPending || !!delayError || !!groupsError}
               className="rounded bg-sky-600 px-3 py-1.5 text-sm text-white hover:bg-sky-700 disabled:opacity-50"
             >
               {save.isPending ? "Saving…" : "Save"}

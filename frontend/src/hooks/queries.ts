@@ -33,6 +33,10 @@ export function useWeekFlights(view: ViewParams, group: string | null, enabled: 
   });
 }
 
+export function useAllUkGroups(enabled: boolean) {
+  return useQuery({ queryKey: ["uk-groups", "all"], queryFn: api.allUkGroups, enabled });
+}
+
 export function useStatus() {
   return useQuery({ queryKey: ["status"], queryFn: api.status, refetchInterval: 15_000 });
 }

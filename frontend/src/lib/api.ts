@@ -50,6 +50,9 @@ export interface ViewParams {
 export const api = {
   airports: (q: string) => request<Airport[]>(`/airports?${qs({ q })}`),
   ukGroups: () => request<UKGroup[]>("/uk-groups"),
+  allUkGroups: () => request<UKGroup[]>("/uk-groups?include_disabled=true"),
+  setUkGroups: (enabled: string[]) =>
+    request<UKGroup[]>("/uk-groups", { method: "PUT", body: JSON.stringify({ enabled }) }),
   week: (v: ViewParams, selectedGroup?: string, selectedDate?: string) =>
     request<WeekSummary>(
       `/week?${qs({

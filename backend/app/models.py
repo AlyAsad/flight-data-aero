@@ -172,7 +172,7 @@ class AppSettings(BaseModel):
     provider_mode: ProviderMode = ProviderMode.AUTO
     serpapi_monthly_cap: int = Field(default=230, ge=0, le=250)
     concurrency: int = Field(default=2, ge=1, le=8)
-    delay_seconds: tuple[float, float] = (1.0, 3.0)
+    delay_seconds: tuple[float, float] = (0.5, 1.0)
 
     @field_validator("delay_seconds", mode="before")
     @classmethod
@@ -193,6 +193,10 @@ class SettingsUpdate(BaseModel):
     @classmethod
     def _parse_delay(cls, v: object) -> tuple[float, float] | None:
         return None if v is None else parse_delay_range(v)  # type: ignore[arg-type]
+
+
+class UKGroupsUpdate(BaseModel):
+    enabled: list[str]
 
 
 class RefreshRequest(BaseModel):

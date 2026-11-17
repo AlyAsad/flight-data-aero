@@ -102,9 +102,16 @@ def parse_html(html: str) -> list[FlightOption]:
             "Google returned a cookie-consent page instead of results "
             "(common for UK/EU IP addresses)"
         )
-    script = LexborHTMLParser(html).css_first(r"script.ds\:1")
+    if "/sorry/" in head or "unusual traffic" in html[:20000]:
+        raise ProviderError("Google is rate-limiting requests (unusual traffic page)")
+    tree = LexborHTMLParser(html)
+    script = tree.css_first(r"script.ds\:1")
     if script is None:
-        raise ProviderError("could not find flight data in Google Flights page")
+        title = tree.css_first("title")
+        raise ProviderError(
+            "could not find flight data in Google Flights page "
+            f"(title: {title.text(strip=True) if title else 'none'!r}, {len(html)} bytes)"
+        )
     js = script.text()
     try:
         data = js.split("data:", 1)[1].rsplit(",", 1)[0]
