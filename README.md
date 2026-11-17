@@ -9,7 +9,7 @@ See [spec.md](spec.md) for the full specification.
 
 ## Quick start
 
-Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 20+. Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`. If you installed it with `pip` under pyenv, run `pyenv rehash` so your shell can find it.
+Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/getting-started/installation/), Node 20+. Install uv with `curl -LsSf https://astral.sh/uv/install.sh | sh`. Use the standalone installer rather than `pip install uv` under pyenv, because pyenv shims can clash with uv.
 
 ```bash
 cp .env.example .env        # optionally add SERPAPI_API_KEY
