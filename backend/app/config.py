@@ -1,0 +1,64 @@
+"""Environment-driven defaults and filesystem paths.
+
+Values from `.env` are only *defaults*: once the app has run, user-editable
+settings live in SQLite (see `cache.SettingsStore`).
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+REPO_ROOT = BACKEND_DIR.parent
+DATA_DIR = REPO_ROOT / "data"
+UK_AIRPORTS_CONFIG = BACKEND_DIR / "config" / "uk_airports.json"
+FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
+
+# Domain constants from the spec.
+WEEK_HALF_SPAN = 3  # days either side of the centre date
+MAX_DAYS_AHEAD = 330  # beyond this, flights are "not yet on sale"
+ERROR_CACHE_MINUTES = 15
+AUTO_FAILOVER_THRESHOLD = 3  # consecutive fast-flights failures
+AUTO_FAILOVER_MINUTES = 30
+
+
+def parse_delay_range(value: str | list[float] | tuple[float, float]) -> tuple[float, float]:
+    """Parse "1-3", "2" or [1, 3] into a (min, max) tuple of seconds."""
+    if isinstance(value, list | tuple):
+        lo, hi = float(value[0]), float(value[-1])
+    else:
+        parts = str(value).replace(" ", "").split("-")
+        lo, hi = float(parts[0]), float(parts[-1])
+    if lo < 0 or hi < lo:
+        raise ValueError(f"invalid delay range: {value!r}")
+    return lo, hi
+
+
+class EnvSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+    serpapi_api_key: str = ""
+    provider_mode: str = "auto"
+    cache_ttl_days: int = Field(default=2, ge=1, le=5)
+    serpapi_monthly_cap: int = Field(default=230, ge=0)
+    serpapi_batch_max_airports: int = Field(default=7, ge=1)
+    fetch_concurrency: int = Field(default=2, ge=1, le=8)
+    fetch_delay_seconds: str = "1-3"
+    db_path: Path = DATA_DIR / "flights.db"
+
+    @field_validator("fetch_delay_seconds")
+    @classmethod
+    def _check_delay(cls, v: str) -> str:
+        parse_delay_range(v)
+        return v
+
+
+@lru_cache
+def get_env() -> EnvSettings:
+    return EnvSettings()

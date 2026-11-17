@@ -1,0 +1,226 @@
+{
+  "search_metadata": {
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "google_flights",
+    "departure_id": "LHR,LGW,STN,LTN",
+    "arrival_id": "KHI",
+    "outbound_date": "2026-12-31",
+    "type": "2",
+    "currency": "GBP"
+  },
+  "best_flights": [
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "LHR Airport",
+            "id": "LHR",
+            "time": "2026-12-31 21:30"
+          },
+          "arrival_airport": {
+            "name": "KHI Airport",
+            "id": "KHI",
+            "time": "2027-01-01 10:05"
+          },
+          "duration": 455,
+          "airplane": "Boeing 777",
+          "airline": "PIA",
+          "travel_class": "Economy",
+          "flight_number": "PK 786",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)"
+          ],
+          "overnight": true
+        }
+      ],
+      "total_duration": 455,
+      "price": 431,
+      "type": "One way",
+      "extensions": [
+        "Checked baggage for a fee",
+        "1 carry-on bag included"
+      ]
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "LGW Airport",
+            "id": "LGW",
+            "time": "2026-12-31 13:00"
+          },
+          "arrival_airport": {
+            "name": "IST Airport",
+            "id": "IST",
+            "time": "2026-12-31 19:00"
+          },
+          "duration": 240,
+          "airplane": "Airbus A321",
+          "airline": "Turkish Airlines",
+          "travel_class": "Economy",
+          "flight_number": "TK 1998",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "IST Airport",
+            "id": "IST",
+            "time": "2026-12-31 21:40"
+          },
+          "arrival_airport": {
+            "name": "KHI Airport",
+            "id": "KHI",
+            "time": "2027-01-01 05:30"
+          },
+          "duration": 350,
+          "airplane": "Boeing 737",
+          "airline": "Turkish Airlines",
+          "travel_class": "Economy",
+          "flight_number": "TK 708",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 160,
+          "name": "Istanbul Airport",
+          "id": "IST"
+        }
+      ],
+      "total_duration": 750,
+      "price": 398,
+      "type": "One way",
+      "extensions": [
+        "Carry-on bag included",
+        "1st checked bag included"
+      ]
+    }
+  ],
+  "other_flights": [
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "STN Airport",
+            "id": "STN",
+            "time": "2026-12-31 06:10"
+          },
+          "arrival_airport": {
+            "name": "SAW Airport",
+            "id": "SAW",
+            "time": "2026-12-31 12:20"
+          },
+          "duration": 250,
+          "airplane": "Airbus A320neo",
+          "airline": "Pegasus",
+          "travel_class": "Economy",
+          "flight_number": "PC 1170",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "IST Airport",
+            "id": "IST",
+            "time": "2027-01-01 08:15"
+          },
+          "arrival_airport": {
+            "name": "KHI Airport",
+            "id": "KHI",
+            "time": "2027-01-01 16:00"
+          },
+          "duration": 345,
+          "airplane": "Airbus A320",
+          "airline": "PIA",
+          "travel_class": "Economy",
+          "flight_number": "PK 704",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 1195,
+          "name": "Sabiha G\u00f6k\u00e7en",
+          "id": "SAW",
+          "overnight": true
+        }
+      ],
+      "total_duration": 1790,
+      "price": 352,
+      "type": "One way",
+      "extensions": [
+        "Self transfer",
+        "Carry-on bag for a fee"
+      ]
+    },
+    {
+      "flights": [
+        {
+          "departure_airport": {
+            "name": "LHR Airport",
+            "id": "LHR",
+            "time": "2026-12-31 09:00"
+          },
+          "arrival_airport": {
+            "name": "DXB Airport",
+            "id": "DXB",
+            "time": "2026-12-31 19:00"
+          },
+          "duration": 420,
+          "airplane": "Airbus A380",
+          "airline": "Emirates",
+          "travel_class": "Economy",
+          "flight_number": "EK 2",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)"
+          ]
+        },
+        {
+          "departure_airport": {
+            "name": "DXB Airport",
+            "id": "DXB",
+            "time": "2026-12-31 22:00"
+          },
+          "arrival_airport": {
+            "name": "KHI Airport",
+            "id": "KHI",
+            "time": "2027-01-01 00:10"
+          },
+          "duration": 130,
+          "airplane": "Boeing 777",
+          "airline": "Emirates",
+          "travel_class": "Economy",
+          "flight_number": "EK 600",
+          "legroom": "31 in",
+          "extensions": [
+            "Average legroom (31 in)"
+          ]
+        }
+      ],
+      "layovers": [
+        {
+          "duration": 180,
+          "name": "Dubai International",
+          "id": "DXB"
+        }
+      ],
+      "total_duration": 730,
+      "type": "One way"
+    }
+  ]
+}
