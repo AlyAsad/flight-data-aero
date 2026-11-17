@@ -11,8 +11,7 @@ See [spec.md](spec.md) for the full specification.
 
 ## Live site
 
-<!-- After deploying, replace the line below with your Vercel URL, e.g. **[aero.vercel.app](https://aero.vercel.app)** -->
-**Live:** _not deployed yet_
+**Live:** [flight-data-aly.vercel.app](https://flight-data-aly.vercel.app/)
 
 Or run it on your own computer (below). Both work the same way.
 
