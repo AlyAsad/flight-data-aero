@@ -1,13 +1,25 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": [
-    "lhr1"
-  ],
-  "buildCommand": "npm ci --prefix frontend && npm run build --prefix frontend",
-  "functions": {
-    "backend/app/main.py": {
-      "maxDuration": 60,
-      "excludeFiles": "{frontend/node_modules/**,frontend/src/**,backend/tests/**,data/**}"
+  "regions": ["lhr1"],
+  "services": {
+    "api": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "backend.app.main:app",
+      "functions": {
+        "backend/app/main.py": {
+          "maxDuration": 60,
+          "excludeFiles": "{frontend/**,backend/tests/**,data/**}"
+        }
+      }
+    },
+    "frontend": {
+      "root": "frontend",
+      "framework": "vite"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
 }

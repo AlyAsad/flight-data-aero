@@ -95,7 +95,7 @@ UK city groups and their airports are defined in [backend/config/uk_airports.jso
 
 ## Deploying (free, on Vercel + Turso)
 
-Vercel runs the FastAPI app as a serverless function and serves the built frontend. Serverless functions have no lasting disk, so the cache, settings and SerpApi usage live in a free [Turso](https://turso.tech) database (hosted SQLite). The repo is ready: [vercel.json](vercel.json) builds the frontend, runs in London (`lhr1`) and allows 60 s per request; `pyproject.toml` points Vercel at the app.
+On Vercel the project runs as two services: `frontend` (the Vite build, served from Vercel's CDN at `/`) and `api` (the FastAPI app as a serverless function at `/api/*`). Serverless functions have no lasting disk, so the cache, settings and SerpApi usage live in a free [Turso](https://turso.tech) database (hosted SQLite). The repo is ready: [vercel.json](vercel.json) defines both services and their routes, runs in London (`lhr1`) and allows 60 s per API request.
 
 **1. Create the database (Turso, free)**
 
@@ -143,7 +143,7 @@ make smoke ARGS=--record   # re-capture the live fixtures in backend/tests/fixtu
 
 ```text
 backend/
-  app/main.py            FastAPI app (the Vercel entrypoint); also serves frontend/dist
+  app/main.py            FastAPI app (the Vercel `api` service); locally also serves frontend/dist
   app/api/routes.py      REST endpoints (/api/...)
   app/fetcher.py         job planning (/week) and execution (/fetch), provider switching
   app/providers/         base.py (interface), fast_flights.py, serpapi.py
@@ -159,7 +159,7 @@ frontend/src/
   hooks/                 TanStack Query hooks, useFetchQueue
   lib/                   API client, fetch queue, URL state, formatting
 pyproject.toml, uv.lock  Python project (deps, tools, Vercel entrypoint)
-vercel.json              Vercel build, region and function limits
+vercel.json              Vercel services (frontend + api), routes, region, limits
 data/                    local SQLite database (git-ignored)
 ```
 

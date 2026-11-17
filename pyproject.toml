@@ -31,6 +31,6 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["backend/tests"]
 pythonpath = ["backend"]
 
-# Vercel: the FastAPI app serves the API and the built frontend (see vercel.json).
+# Vercel: entrypoint of the `api` service (see vercel.json).
 [tool.vercel]
 entrypoint = "backend.app.main:app"
