@@ -168,6 +168,7 @@ class WeekFlightsResponse(BaseModel):
 
 
 class AppSettings(BaseModel):
+    # Read-only here: always taken from CACHE_TTL_DAYS in the environment.
     ttl_days: int = Field(default=2, ge=1, le=5)
     provider_mode: ProviderMode = ProviderMode.FAST_FLIGHTS
     serpapi_monthly_cap: int = Field(default=230, ge=0, le=250)
@@ -183,7 +184,6 @@ class AppSettings(BaseModel):
 class SettingsUpdate(BaseModel):
     """Partial settings update (PUT /settings)."""
 
-    ttl_days: int | None = Field(default=None, ge=1, le=5)
     provider_mode: ProviderMode | None = None
     serpapi_monthly_cap: int | None = Field(default=None, ge=0, le=250)
     concurrency: int | None = Field(default=None, ge=1, le=8)

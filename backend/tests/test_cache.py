@@ -118,8 +118,9 @@ def test_get_many_filters(cache):
 def test_settings_seeded_from_env_and_persisted(settings):
     s = settings.get()
     assert s.ttl_days == 2 and s.provider_mode is ProviderMode.FAST_FLIGHTS
-    settings.save(s.model_copy(update={"ttl_days": 4}))
-    assert settings.get().ttl_days == 4
+    settings.save(s.model_copy(update={"concurrency": 4, "ttl_days": 5}))
+    assert settings.get().concurrency == 4
+    assert settings.get().ttl_days == 2  # always from CACHE_TTL_DAYS, never stored
 
 
 def test_serpapi_cap_is_never_exceeded(usage):

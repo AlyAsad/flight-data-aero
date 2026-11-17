@@ -38,6 +38,8 @@ def create_app(state: AppState | None = None, serve_frontend: bool = True) -> Fa
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         services = state or AppState.build(get_env())
         app.state.services = services
+        # CACHE_TTL_DAYS may have changed since entries were stored.
+        services.cache.recompute_expiry(services.env.cache_ttl_days)
         services.fetcher.start()
         sync_task = asyncio.create_task(_sync_serpapi_usage(services))
         try:

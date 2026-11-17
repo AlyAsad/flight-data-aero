@@ -90,10 +90,11 @@ def test_settings_roundtrip_and_validation(client):
     assert client.get("/api/settings").json()["ttl_days"] == 2
     res = client.put("/api/settings", json={"ttl_days": 4, "delay_seconds": [0.1, 0.25]})
     assert res.status_code == 200
-    assert res.json()["ttl_days"] == 4 and res.json()["delay_seconds"] == [0.1, 0.25]
+    # Cache expiry comes only from CACHE_TTL_DAYS; the request's ttl_days is ignored.
+    assert res.json()["ttl_days"] == 2 and res.json()["delay_seconds"] == [0.1, 0.25]
+    assert client.get("/api/settings").json()["ttl_days"] == 2
     assert client.put("/api/settings", json={"delay_seconds": [0, 1]}).status_code == 422
     assert client.put("/api/settings", json={"delay_seconds": [2, 1]}).status_code == 422
-    assert client.put("/api/settings", json={"ttl_days": 9}).status_code == 422
     assert client.put("/api/settings", json={"provider_mode": "bogus"}).status_code == 422
 
 
@@ -232,3 +233,36 @@ def test_public_endpoints_stay_open_with_admin_password(admin_client):
         json={"scope": "week", "direction": "from_uk", "foreign": "KHI", "center_date": CENTER},
     )
     assert res.status_code == 200
+
+
+def test_cache_ttl_comes_from_env_and_applies_on_startup(env, tmp_path):
+    from datetime import timedelta
+
+    from app.cache import RouteKey, utcnow
+    from app.models import Completeness, Direction
+
+    state = AppState.build(
+        env,
+        fast_flights=FakeProvider(),
+        serpapi=FakeSerpApi(available=False),
+        groups=GROUPS,
+        sleep=no_sleep,
+    )
+    key = RouteKey(Direction.FROM_UK, "NCL", "KHI", date.today() + timedelta(days=30))
+    fetched = utcnow()
+    state.cache.store_result(
+        key, [], provider="fake", completeness=Completeness.FULL, ttl_days=2, now=fetched
+    )
+    state.db.close()
+
+    env5 = env.model_copy(update={"cache_ttl_days": 5})
+    state5 = AppState.build(
+        env5,
+        fast_flights=FakeProvider(),
+        serpapi=FakeSerpApi(available=False),
+        groups=GROUPS,
+        sleep=no_sleep,
+    )
+    with TestClient(create_app(state5, serve_frontend=False)) as c:
+        assert c.get("/api/settings").json()["ttl_days"] == 5
+        assert state5.cache.get(key).expires_at == fetched + timedelta(days=5)

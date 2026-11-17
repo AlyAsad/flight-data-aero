@@ -40,7 +40,7 @@ Results fill in as they arrive. The status line shows progress ("Loading 23 of 7
 | hatched cell | Date is in the past, or not yet on sale (more than ~330 days out) |
 
 **⟳ menu**: Refresh week, Refresh all cache (marks everything expired, then re-fetches the view), Clear cache.
-**⚙ settings**: cache expiry (1–5 days), provider mode, SerpApi cap and usage, concurrency, request delay (in ms, minimum 100) and which UK cities to include. Changing expiry doesn't re-fetch anything. It only changes when entries count as expired. Enabling or disabling a city updates the sidebar and heatmap straight away.
+**⚙ settings**: provider mode, SerpApi cap and usage, concurrency, request delay (in ms, minimum 100) and which UK cities to include. Cache expiry is server configuration only (`CACHE_TTL_DAYS`). Enabling or disabling a city updates the sidebar and heatmap straight away.
 
 ## Data providers
 
@@ -73,7 +73,7 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 | --- | --- | --- |
 | `SERPAPI_API_KEY` | (empty) | Enables SerpApi |
 | `PROVIDER_MODE` | `fast_flights` | `fast_flights`, `auto` or `serpapi` |
-| `CACHE_TTL_DAYS` | `2` | 1–5 |
+| `CACHE_TTL_DAYS` | `2` | Cache expiry, 1–5 days. Set here only, not in the UI. Applied to existing entries on restart; nothing is re-fetched until it expires or you refresh. |
 | `SERPAPI_MONTHLY_CAP` | `230` | Hard cap, never exceeded |
 | `SERPAPI_BATCH_MAX_AIRPORTS` | `7` | Max airports per overview query |
 | `FETCH_CONCURRENCY` | `2` | Parallel fetch workers |

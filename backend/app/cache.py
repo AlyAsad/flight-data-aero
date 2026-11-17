@@ -139,7 +139,9 @@ class SettingsStore:
             settings = self._defaults()
             self.save(settings)
             return settings
-        return AppSettings.model_validate_json(row["value"])
+        # Cache expiry is server configuration (CACHE_TTL_DAYS), never user-editable.
+        stored = AppSettings.model_validate_json(row["value"])
+        return stored.model_copy(update={"ttl_days": self._env.cache_ttl_days})
 
     def save(self, settings: AppSettings) -> None:
         with self._db.tx() as c:

@@ -200,8 +200,6 @@ def put_settings(state: State, body: SettingsUpdate) -> AppSettings:
     updated = current.model_copy(update=body.model_dump(exclude_none=True))
     updated = AppSettings.model_validate(updated.model_dump())
     state.settings.save(updated)
-    if updated.ttl_days != current.ttl_days:
-        state.cache.recompute_expiry(updated.ttl_days)
     if updated.concurrency != current.concurrency:
         state.fetcher.set_concurrency(updated.concurrency)
     if updated.provider_mode != current.provider_mode:

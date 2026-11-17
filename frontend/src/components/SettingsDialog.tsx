@@ -202,22 +202,6 @@ export function SettingsDialog({ open, onClose }: Props) {
 
           <fieldset disabled={locked} className="space-y-5 disabled:opacity-60">
 
-          <label className="block">
-            <span className="text-sm font-medium">Cache expiry: {draft.ttl_days} day{draft.ttl_days > 1 ? "s" : ""}</span>
-            <input
-              type="range"
-              min={1}
-              max={5}
-              step={1}
-              value={draft.ttl_days}
-              onChange={(e) => set("ttl_days", Number(e.target.value))}
-              className="mt-1 w-full accent-sky-600"
-            />
-            <span className="text-xs text-slate-500">
-              Applies to existing entries too. Data is not re-fetched until you press refresh.
-            </span>
-          </label>
-
           <fieldset>
             <legend className="text-sm font-medium">Data provider</legend>
             <div className="mt-1 space-y-1">
