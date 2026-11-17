@@ -73,10 +73,10 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 | --- | --- | --- |
 | `SERPAPI_API_KEY` | (empty) | Enables SerpApi |
 | `PROVIDER_MODE` | `fast_flights` | `fast_flights`, `auto` or `serpapi` |
-| `CACHE_TTL_DAYS` | `2` | Cache expiry, 1–5 days. Set here only, not in the UI. Applied to existing entries on restart; nothing is re-fetched until it expires or you refresh. |
+| `CACHE_TTL_DAYS` | `1` | Cache expiry, 1–5 days. Set here only, not in the UI. Applied to existing entries on restart; nothing is re-fetched until it expires or you refresh. |
 | `SERPAPI_MONTHLY_CAP` | `230` | Hard cap, never exceeded |
 | `SERPAPI_BATCH_MAX_AIRPORTS` | `7` | Max airports per overview query |
-| `FETCH_CONCURRENCY` | `2` | Parallel fetch workers |
+| `FETCH_CONCURRENCY` | `3` | Parallel fetch workers, max 8 |
 | `FETCH_DELAY_SECONDS` | `0.5-1` | Random delay between requests, in seconds (0.1–60). Doubles per consecutive fast-flights failure, up to 30 s. |
 | `GOOGLE_CONSENT_COOKIE` | `true` | Send Google consent cookies with fast-flights requests |
 | `ADMIN_PASSWORD` | (empty) | If set, changing settings or cities, Refresh all cache and Clear cache need this password. Leave empty for local use. |
