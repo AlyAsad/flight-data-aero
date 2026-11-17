@@ -83,25 +83,35 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 
 UK city groups and their airports are defined in [backend/config/uk_airports.json](backend/config/uk_airports.json), and its `"enabled"` values are the defaults. Turn cities on or off in ⚙ settings; that choice is saved in the database and overrides the JSON. Edit the JSON (and restart) only to add a city or change its airports. Liverpool and East Midlands are off by default.
 
-## Deploying (free)
+## Deploying (free, on Koyeb)
 
-The repo includes a `Dockerfile` that builds the frontend and serves everything from FastAPI on `$PORT`. Any Docker host works. The easiest free option is **Render**:
+The repo's `Dockerfile` builds the frontend and serves everything from FastAPI on `$PORT` (default 8000). Koyeb builds it straight from GitHub and redeploys on every push to `main`.
 
-1. Push the repo to GitHub.
-2. In Render, choose **New → Blueprint** and pick the repo. It reads [render.yaml](render.yaml), which defines a free Docker web service.
-3. Set `ADMIN_PASSWORD` (pick a long one) and, optionally, `SERPAPI_API_KEY`. Both are secrets in the dashboard, never in git.
-4. Deploy. The site is at `https://aero-<something>.onrender.com`.
+1. Push the repo to GitHub, then in [Koyeb](https://app.koyeb.com) choose **Create Web Service → GitHub** and pick this repo, branch `main`.
+2. **Builder:** Dockerfile (detected automatically; no build or run command needed).
+3. **Instance:** Free. **Region:** Frankfurt (closest to the UK).
+4. **Environment variables:** add these (use **Secret** for the two secrets):
 
-What to expect on Render's free plan:
+   | Name | Value |
+   | --- | --- |
+   | `ADMIN_PASSWORD` | Secret: a long password only you know |
+   | `SERPAPI_API_KEY` | Secret, optional: needed only if you'll switch to `auto`/`serpapi` |
+   | `PROVIDER_MODE` | `fast_flights` |
+   | `CACHE_TTL_DAYS` | `2` |
 
-- **Sleeping:** the service sleeps after 15 minutes without visitors, and the first visit after that takes about a minute to wake it.
-- **Wiped disk:** the disk is cleared on every restart or deploy, so the flight cache empties and refills on demand. Settings changed in the UI return to the environment variable defaults, so set `PROVIDER_MODE` and the rest there.
-- **SerpApi cap:** the usage counter is re-synced from SerpApi's free Account API at startup and every 30 minutes, so the monthly cap holds across wipes.
-- **Google may be stricter with cloud IPs:** fast-flights can hit Google's "unusual traffic" page more often than at home. The status line shows it when that happens. Switching to `auto` (admin only) lets SerpApi fill the gaps.
+5. **Ports:** `8000`, protocol HTTP, route `/`. **Health check:** HTTP, path `/api/status`, port `8000`.
+6. Name the service `aero` and deploy. The site appears at `https://aero-<your-org>.koyeb.app`.
 
-**Admin mode:** with `ADMIN_PASSWORD` set, visitors can browse, search and use Refresh day/week. ⚙ settings are read-only for them until someone enters the password. The password is checked on the server, never stored in the page, and kept only in that browser tab's session.
+What to expect on the free instance (512 MB RAM, 0.1 vCPU):
 
-Run the image yourself with `docker build -t aero . && docker run -p 8000:8000 --env-file .env aero`.
+- **Plenty of memory:** a local test peaked at about 125 MB while fetching a full week (77 requests).
+- **Sleeping:** the app sleeps after 1 hour without traffic. The first visit afterwards takes roughly 10–20 seconds while Python starts on the small CPU share. A week of fetching takes a little longer than locally.
+- **Wiped disk:** the disk is cleared on every restart or redeploy. The flight cache refills on demand. Settings changed in the UI return to the environment variables above, so put your defaults there. The SerpApi usage counter is re-synced from SerpApi's free Account API at startup and every 30 minutes, so the monthly cap still holds.
+- **Google and cloud IPs:** Google may treat cloud IPs more strictly. If the status line shows fast-flights failing, unlock admin mode in ⚙ and switch to `auto` so SerpApi fills the gaps.
+
+**Admin mode:** with `ADMIN_PASSWORD` set, visitors can browse, search and use Refresh day/week. ⚙ settings, city toggles, Refresh all cache and Clear cache need the password. It's checked on the server and kept only in that browser tab's session.
+
+To run the same image locally: `docker build -t aero . && docker run -p 8000:8000 --env-file .env aero`.
 
 ## Development
 

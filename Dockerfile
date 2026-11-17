@@ -26,7 +26,7 @@ COPY --from=frontend /app/frontend/dist /app/frontend/dist
 RUN useradd --create-home --uid 1000 aero && mkdir -p /app/data && chown -R aero /app/data
 USER aero
 
-# Most hosts inject PORT; 8000 is the local default.
+# Koyeb (and most hosts) can inject PORT; 8000 matches the Koyeb service port.
 ENV PORT=8000
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \

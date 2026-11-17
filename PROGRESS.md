@@ -17,7 +17,7 @@ Live acceptance check (From UK → KHI, centred 31 Dec 2026, fast-flights): the 
 
 Rate test at the 500–1000 ms default delay (concurrency 2): 2 bursts of about 75 requests each, at about 1.25 requests/s. 148 of 150 succeeded; the 2 failures were one-off and not rate limiting.
 
-Deployment: the Dockerfile and render.yaml are written. Docker isn't installed on the dev machine, so the image hasn't been built. The same steps were rehearsed in a clean copy (env vars only, PORT=8123, ADMIN_PASSWORD set) and worked.
+Deployment target: Koyeb free instance (steps in README). Memory peaked at about 125 MB during a full-week fetch, and the week used about 3 s of CPU. The Dockerfile is written. Docker isn't installed on the dev machine, so the image hasn't been built. The same steps were rehearsed in a clean copy (env vars only, PORT=8123, ADMIN_PASSWORD set) and worked.
 
 ## Open items
 
