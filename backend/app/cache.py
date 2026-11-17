@@ -111,6 +111,21 @@ class Database:
         with self._lock, self._conn:
             yield self._conn
 
+    @property
+    def total_changes(self) -> int:
+        """Rows changed since the connection opened (cheap "is there anything new?" check)."""
+        with self._lock:
+            return self._conn.total_changes
+
+    def backup_to(self, path: Path) -> None:
+        """Write a consistent copy of the database to `path` (SQLite online backup)."""
+        dest = sqlite3.connect(str(path))
+        try:
+            with self._lock:
+                self._conn.backup(dest)
+        finally:
+            dest.close()
+
     def close(self) -> None:
         self._conn.close()
 

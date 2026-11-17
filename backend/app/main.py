@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from .api.routes import router
 from .cache import utcnow
 from .config import FRONTEND_DIST, get_env
+from .snapshot import SNAPSHOT_INTERVAL_SECONDS, GcsSnapshot
 from .state import AppState
 
 USAGE_SYNC_INTERVAL_SECONDS = 30 * 60
@@ -30,23 +31,40 @@ async def _sync_serpapi_usage(services: AppState) -> None:
         await asyncio.sleep(USAGE_SYNC_INTERVAL_SECONDS)
 
 
+async def _save_snapshots(services: AppState, snapshot: GcsSnapshot) -> None:
+    while True:
+        await asyncio.sleep(SNAPSHOT_INTERVAL_SECONDS)
+        if await snapshot.save(services.db):
+            log.info("cache snapshot saved")
+
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
 def create_app(state: AppState | None = None, serve_frontend: bool = True) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        services = state or AppState.build(get_env())
+        env = state.env if state else get_env()
+        snapshot = GcsSnapshot(env.cache_snapshot_uri) if env.cache_snapshot_uri else None
+        if snapshot and state is None:
+            await snapshot.restore(env.db_path)  # must happen before the DB is opened
+        services = state or AppState.build(env)
         app.state.services = services
         # CACHE_TTL_DAYS may have changed since entries were stored.
         services.cache.recompute_expiry(services.env.cache_ttl_days)
         services.fetcher.start()
-        sync_task = asyncio.create_task(_sync_serpapi_usage(services))
+        tasks = [asyncio.create_task(_sync_serpapi_usage(services))]
+        if snapshot:
+            tasks.append(asyncio.create_task(_save_snapshots(services, snapshot)))
         try:
             yield
         finally:
-            sync_task.cancel()
+            for task in tasks:
+                task.cancel()
             await services.fetcher.stop()
+            if snapshot:
+                await snapshot.save(services.db)  # host is stopping: keep the cache
+                await snapshot.aclose()
             await services.providers.serpapi.aclose()
             services.db.close()
 

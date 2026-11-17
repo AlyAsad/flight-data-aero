@@ -79,37 +79,42 @@ Switching provider mode also applies to work already queued. Switch to `serpapi`
 | `FETCH_CONCURRENCY` | `3` | Parallel fetch workers, max 8 |
 | `FETCH_DELAY_SECONDS` | `0.5-1` | Random delay between requests, in seconds (0.1–60). Doubles per consecutive fast-flights failure, up to 30 s. |
 | `GOOGLE_CONSENT_COOKIE` | `true` | Send Google consent cookies with fast-flights requests |
+| `CACHE_SNAPSHOT_URI` | (empty) | `gs://bucket/object`: restore the database from Cloud Storage at startup and save it back periodically and at shutdown (used on Cloud Run). |
 | `ADMIN_PASSWORD` | (empty) | If set, changing settings or cities, Refresh all cache and Clear cache need this password. Leave empty for local use. |
 
 UK city groups and their airports are defined in [backend/config/uk_airports.json](backend/config/uk_airports.json), and its `"enabled"` values are the defaults. Turn cities on or off in ⚙ settings; that choice is saved in the database and overrides the JSON. Edit the JSON (and restart) only to add a city or change its airports. Liverpool and East Midlands are off by default.
 
-## Deploying (free, on Koyeb)
+## Deploying (free, on Google Cloud Run)
 
-The repo's `Dockerfile` builds the frontend and serves everything from FastAPI on `$PORT` (default 8000). Koyeb builds it straight from GitHub and redeploys on every push to `main`.
+[deploy/cloud-run.sh](deploy/cloud-run.sh) builds the `Dockerfile` with Cloud Build and deploys it to Cloud Run. The database is saved to a Cloud Storage bucket, so the cache survives Cloud Run stopping the instance.
 
-1. Push the repo to GitHub, then in [Koyeb](https://app.koyeb.com) choose **Create Web Service → GitHub** and pick this repo, branch `main`.
-2. **Builder:** Dockerfile (detected automatically; no build or run command needed).
-3. **Instance:** Free. **Region:** Frankfurt (closest to the UK).
-4. **Environment variables:** add these (use **Secret** for the two secrets):
+**One-time setup**
 
-   | Name | Value |
-   | --- | --- |
-   | `ADMIN_PASSWORD` | Secret: a long password only you know |
-   | `SERPAPI_API_KEY` | Secret, optional: needed only if you'll switch to `auto`/`serpapi` |
-   | `PROVIDER_MODE` | `fast_flights` |
-   | `CACHE_TTL_DAYS` | `2` |
+1. Create a Google Cloud account and a project at [console.cloud.google.com](https://console.cloud.google.com). Link a billing account: Cloud Run requires a card even within the free tier.
+2. **Set a budget alert** (Billing → Budgets & alerts, e.g. £1) so any unexpected charge emails you.
+3. Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and run `gcloud auth login`.
 
-5. **Ports:** `8000`, protocol HTTP, route `/`. **Health check:** HTTP, path `/api/status`, port `8000`.
-6. Name the service `aero` and deploy. The site appears at `https://aero-<your-org>.koyeb.app`.
+**Deploy (and redeploy after changes)**
 
-What to expect on the free instance (512 MB RAM, 0.1 vCPU):
+```bash
+PROJECT_ID=your-project-id deploy/cloud-run.sh
+```
 
-- **Plenty of memory:** a local test peaked at about 125 MB while fetching a full week (77 requests).
-- **Sleeping:** the app sleeps after 1 hour without traffic. The first visit afterwards takes roughly 10–20 seconds while Python starts on the small CPU share. A week of fetching takes a little longer than locally.
-- **Wiped disk:** the disk is cleared on every restart or redeploy. The flight cache refills on demand. Settings changed in the UI return to the environment variables above, so put your defaults there. The SerpApi usage counter is re-synced from SerpApi's free Account API at startup and every 30 minutes, so the monthly cap still holds.
+The first run enables the APIs. It creates a service account, the `<project>-aero-cache` bucket, and secrets for the admin password and (optionally) the SerpApi key, prompting you for both. Then it builds and deploys, and prints the site URL (`https://aero-….run.app`). Later runs reuse everything and just deploy the current code. Files listed in `.gcloudignore` (`.env`, `data/`, `.git` and so on) are never uploaded.
+
+To change a secret: `printf '%s' 'new-value' | gcloud secrets versions add aero-admin-password --data-file=-`, then re-run the script.
+
+**How it behaves**
+
+- **Region:** `us-central1`, where the free allowances apply. That adds about 0.1 s of delay from the UK.
+- **When it runs:** it has a full CPU while anyone has the page open, because the live-update stream counts as an active request. When nobody is viewing, it pauses and shuts down after up to 15 minutes. The next visit starts it again in a few seconds.
+- **Free allowance:** roughly 50 hours a month of someone actively viewing, about 2 million requests, and plenty of build minutes and storage for this app ([pricing](https://cloud.google.com/run/pricing)). Max instances is 1, so it can't scale up into a bill.
+- **Persistence:** the database (cache, settings and SerpApi usage) is restored from `gs://<project>-aero-cache/flights.db` at startup. It's saved every 5 minutes when something has changed, and again when Cloud Run stops the instance. Settings changed in the UI therefore persist too.
 - **Google and cloud IPs:** Google may treat cloud IPs more strictly. If the status line shows fast-flights failing, unlock admin mode in ⚙ and switch to `auto` so SerpApi fills the gaps.
 
-**Admin mode:** with `ADMIN_PASSWORD` set, visitors can browse, search and use Refresh day/week. ⚙ settings, city toggles, Refresh all cache and Clear cache need the password. It's checked on the server and kept only in that browser tab's session.
+**Admin mode:** with `ADMIN_PASSWORD` set (the script always sets it), visitors can browse, search and use Refresh day/week. ⚙ settings, city toggles, Refresh all cache and Clear cache need the password. It's checked on the server and kept only in that browser tab's session.
+
+**If the first build fails with a permissions error:** some newer projects don't give Cloud Build's default service account enough access. Grant it the *Cloud Build Service Account* role (IAM → the `…-compute@developer.gserviceaccount.com` account) and re-run.
 
 To run the same image locally: `docker build -t aero . && docker run -p 8000:8000 --env-file .env aero`.
 
@@ -131,6 +136,7 @@ backend/
   app/cache.py           SQLite cache, settings, SerpApi usage
   app/summary.py         week / day summaries from cache entries
   app/models.py          FlightOption, summaries, settings
+  app/snapshot.py        optional Cloud Storage persistence of the database
   config/uk_airports.json
   tests/                 pytest suite; fixtures/ holds provider responses
 frontend/src/
@@ -138,6 +144,7 @@ frontend/src/
   hooks/                 TanStack Query hooks, SSE subscription
   lib/                   API client, URL state, formatting
 data/                    SQLite database (git-ignored)
+deploy/cloud-run.sh      one-command Cloud Run deploy
 ```
 
 ### How fetching works

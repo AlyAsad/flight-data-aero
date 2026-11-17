@@ -60,6 +60,9 @@ class EnvSettings(BaseSettings):
     # When set, changing settings, cities or clearing the cache needs this password
     # (X-Admin-Password header). Leave empty for local, single-user use.
     admin_password: str = ""
+    # Optional "gs://bucket/object": the SQLite file is restored from Cloud Storage at
+    # startup and saved back periodically and at shutdown (for hosts with a wiped disk).
+    cache_snapshot_uri: str = ""
     db_path: Path = DATA_DIR / "flights.db"
 
     @field_validator("fetch_delay_seconds")

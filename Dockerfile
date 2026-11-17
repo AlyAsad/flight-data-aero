@@ -26,9 +26,11 @@ COPY --from=frontend /app/frontend/dist /app/frontend/dist
 RUN useradd --create-home --uid 1000 aero && mkdir -p /app/data && chown -R aero /app/data
 USER aero
 
-# Koyeb (and most hosts) can inject PORT; 8000 matches the Koyeb service port.
+# Cloud Run (and most hosts) inject PORT; 8000 is the local default.
 ENV PORT=8000
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/api/status', timeout=4)"
-CMD ["sh", "-c", "exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*'"]
+# --timeout-graceful-shutdown: open live-update streams would otherwise delay shutdown
+# past Cloud Run's 10 s SIGTERM window, and the final cache snapshot would be lost.
+CMD ["sh", "-c", "exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 3"]
