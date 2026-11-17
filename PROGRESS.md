@@ -11,7 +11,7 @@ Status as of 2026-11-17. All six spec milestones are implemented and checked aga
 | 5. SerpApi adapter, auto switching, usage tracking | Done. Live detail query verified. Batch of 8 airports accepted. |
 | 6. Settings, refresh controls, stale handling, README | Done |
 
-Tests: `make test` gives 75 backend tests and 30 frontend tests. `make lint` is clean.
+Tests: `make test` gives 80 backend tests and 30 frontend tests. `make lint` is clean.
 
 Live acceptance check (From UK → KHI, centred 31 Dec 2026, fast-flights): the week filled in about 2.75 minutes with 0 errors, and a reload within the TTL made 0 provider calls. Six of the eight cities have prices from fast-flights. Bristol and Leeds Bradford are filled in by the `auto`-mode SerpApi double-check (verified live: BRS from £562, LBA from £596).
 
