@@ -13,12 +13,30 @@ export function useFetchQueue(view: string, concurrency: number) {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const queueRef = useRef<FetchQueue | null>(null);
 
+  const inFlight = useRef(false);
+  const dirty = useRef(false);
+
+  // Refetch week/flights after jobs finish. A refetch already running is never
+  // cancelled (that kept the grid from updating while jobs finished back to
+  // back); if more jobs finish meanwhile, one more refetch follows it.
   const refetch = useCallback(() => {
+    if (inFlight.current) {
+      dirty.current = true;
+      return;
+    }
     if (timer.current) return;
     timer.current = setTimeout(() => {
       timer.current = undefined;
-      void qc.invalidateQueries({ queryKey: ["week"] });
-      void qc.invalidateQueries({ queryKey: ["flights"] });
+      inFlight.current = true;
+      dirty.current = false;
+      const opts = { cancelRefetch: false };
+      void Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ["week"] }, opts),
+        qc.invalidateQueries({ queryKey: ["flights"] }, opts),
+      ]).then(() => {
+        inFlight.current = false;
+        if (dirty.current) refetch();
+      });
     }, REFETCH_THROTTLE_MS);
   }, [qc]);
 

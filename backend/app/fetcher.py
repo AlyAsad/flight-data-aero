@@ -32,7 +32,6 @@ from .config import (
     AUTO_FAILOVER_MINUTES,
     AUTO_FAILOVER_THRESHOLD,
     CLAIM_SECONDS,
-    ERROR_CACHE_MINUTES,
     MAX_BACKOFF_SECONDS,
     MIN_FORCE_AGE_SECONDS,
 )
@@ -81,13 +80,9 @@ def needs_fetch(
     """Whether one airport's route-day must be (re)fetched."""
     if entry is None:
         return True
-    # A refresh forces a fetch unless it already failed after the refresh was requested.
-    failed_since_refresh = (
-        force_after is not None
-        and entry.retry_after is not None
-        and entry.retry_after - timedelta(minutes=ERROR_CACHE_MINUTES) >= force_after
-    )
-    if force_after is not None and entry.fetched_at < force_after and not failed_since_refresh:
+    # A refresh always retries a failed fetch, and re-fetches data older than
+    # MIN_FORCE_AGE_SECONDS (so mashing Refresh can't hammer Google).
+    if force_after is not None and (entry.in_error_backoff(now) or entry.fetched_at < force_after):
         return True
     if entry.in_error_backoff(now):
         return False
@@ -273,9 +268,17 @@ class Fetcher:
 
     # ------------------------------------------------------------------ planning
 
-    def _airports_needing_fetch(self, run: _Run, now: datetime | None = None) -> list[str]:
+    def _airports_needing_fetch(
+        self,
+        run: _Run,
+        now: datetime | None = None,
+        entries: dict[RouteKey, CacheEntry] | None = None,
+    ) -> list[str]:
         now = now or utcnow()
-        entries = self._cache.get_many(run.direction, run.foreign, run.group.airports, [run.date])
+        if entries is None:
+            entries = self._cache.get_many(
+                run.direction, run.foreign, run.group.airports, [run.date]
+            )
         return [
             a
             for a in run.group.airports
@@ -306,6 +309,10 @@ class Fetcher:
         force_after = now - timedelta(seconds=MIN_FORCE_AGE_SECONDS) if force else None
         groups = self.groups
         order = {g.id: i for i, g in enumerate(groups)}
+        # One query for the whole week: per-day queries are slow on a remote database.
+        entries = self._cache.get_many(
+            direction, foreign, {a for g in groups for a in g.airports}, week_dates(center)
+        )
         candidates: list[tuple[tuple[int, int, int], FetchJob]] = []
         for group in groups:
             is_selected = group.id == selected_group
@@ -313,7 +320,7 @@ class Fetcher:
                 if not is_fetchable(day):
                     continue
                 run = _Run(direction, foreign, group, day, is_selected, force_after)
-                planned = self._airports_needing_fetch(run, now)
+                planned = self._airports_needing_fetch(run, now, entries)
                 if not planned:
                     continue
                 if is_selected:

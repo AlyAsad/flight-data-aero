@@ -1,4 +1,5 @@
 const GITHUB_URL = "https://github.com/AlyAsad";
+const REPO_URL = "https://github.com/AlyAsad/flight-data-aero";
 const LINKEDIN_URL = "https://www.linkedin.com/in/alyasad/";
 
 // Simple Icons paths (CC0).
@@ -27,13 +28,29 @@ function IconLink({ href, label, path }: { href: string; label: string; path: st
 /** Page footer; its generous padding also lets the list scroll past its last row. */
 export function Footer() {
   return (
-    <footer className="mt-auto flex flex-col items-center gap-2 border-t border-slate-200 px-4 pt-8 pb-24 text-sm text-slate-500">
+    <footer className="mt-auto flex flex-col items-center gap-2 border-t border-slate-200 px-4 pt-8 pb-8 text-sm text-slate-500">
+      <p className="max-w-xl text-center text-xs text-slate-500">
+        Flight search sites compare one city to another. Aero shows every major UK city side by side across the whole
+        week, so you can see which airport and day work out best before you book.
+      </p>
       <div className="flex items-center gap-1">
         <IconLink href={GITHUB_URL} label="GitHub" path={GITHUB_PATH} />
         <IconLink href={LINKEDIN_URL} label="LinkedIn" path={LINKEDIN_PATH} />
       </div>
       <p>
         <span className="font-medium text-slate-600">Aero</span> · built by Aly Gilani
+      </p>
+      <p className="text-xs text-slate-400">
+        Open source on{" "}
+        <a
+          href={REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-slate-700"
+        >
+          GitHub
+        </a>
+        .
       </p>
       <p className="text-xs text-slate-400">Prices from Google Flights. Always check with the airline before booking.</p>
     </footer>

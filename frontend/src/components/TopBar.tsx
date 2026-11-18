@@ -180,6 +180,7 @@ function StatusLine({ progress, status }: { progress: QueueProgress; status?: St
       {loading ? (
         <span className="flex items-center gap-1.5">
           <Spinner /> Loading {Math.min(progress.done, progress.total)} of {progress.total}
+          <span className="text-slate-400">· prices are fetched live, so this can take a minute</span>
         </span>
       ) : (
         <span>Up to date</span>

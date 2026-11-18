@@ -145,6 +145,12 @@ class TestFastFlightsRun:
         assert cache.get(RouteKey(FROM, "NCL", "KHI", CENTER)).status is EntryStatus.ERROR
         assert (await fetcher.run(job())).status == "skipped"
         assert len(ff.calls) == 1
+        # A refresh retries a failed day straight away (no two-minute wait).
+        assert (await fetcher.run(job(force=True))).status == "error"
+        assert len(ff.calls) == 2
+        ff.fail = False
+        assert (await fetcher.run(job(force=True))).status == "done"
+        assert cache.get(RouteKey(FROM, "NCL", "KHI", CENTER)).status is EntryStatus.OK
 
     async def test_busy_when_another_request_holds_the_claim(self, fetcher, claims, ff):
         assert claims.claim(f"from_uk:KHI:NCL:{CENTER.isoformat()}", 90)

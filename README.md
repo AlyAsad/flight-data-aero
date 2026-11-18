@@ -92,44 +92,6 @@ Switching provider mode applies from the next fetch, including the rest of a wee
 
 UK city groups and their airports are defined in [backend/config/uk_airports.json](backend/config/uk_airports.json), and its `"enabled"` values are the defaults. Turn cities on or off in ⚙ settings; that choice is saved in the database and overrides the JSON. Edit the JSON (and restart) only to add a city or change its airports. Liverpool and East Midlands are off by default.
 
-## Deploying (free, on Vercel + Turso)
-
-On Vercel the project runs as two services: `frontend` (the Vite build, served from Vercel's CDN at `/`) and `api` (the FastAPI app as a serverless function at `/api/*`). Serverless functions have no lasting disk, so the cache, settings and SerpApi usage live in a free [Turso](https://turso.tech) database (hosted SQLite). The repo is ready: [vercel.json](vercel.json) defines both services and their routes, runs in London (`lhr1`) and allows 60 s per API request.
-
-**1. Create the database (Turso, free)**
-
-1. Sign up at [turso.tech](https://turso.tech) (GitHub login works).
-2. Create a database named `aero`. Pick the London/Europe location, close to Vercel's `lhr1` region.
-3. Copy its **URL** (`libsql://aero-<you>.turso.io`) and create a **token** for it. Both are on the database's page in the dashboard. With the Turso CLI instead: `turso db show aero --url` and `turso db tokens create aero`.
-
-The app creates its tables on first use, so there's nothing else to set up.
-
-**2. Deploy on Vercel**
-
-1. In Vercel: **Add New → Project**, import this GitHub repo. Leave the framework and build settings as detected (`vercel.json` supplies them).
-2. Under **Environment Variables**, add:
-
-   | Name | Value |
-   | --- | --- |
-   | `TURSO_DATABASE_URL` | the `libsql://…` URL from step 1 |
-   | `TURSO_AUTH_TOKEN` | the token from step 1 |
-   | `ADMIN_PASSWORD` | a long password only you know |
-   | `PROVIDER_MODE` | `fast_flights` (or `auto` if you add a SerpApi key) |
-   | `SERPAPI_API_KEY` | optional |
-   | `CACHE_TTL_DAYS` | optional, `1`–`5` |
-
-3. Deploy, then paste the URL into **Live site** at the top of this README.
-
-Vercel redeploys on every push to `main`. You can also deploy from your machine with `npx vercel deploy --prod`; [.vercelignore](.vercelignore) keeps `.env` and local data from being uploaded.
-
-**What to expect**
-
-- **Fetching:** each `/api/fetch` call fetches one city-day and returns in a few seconds, well inside Vercel's limits. A full week is 56 calls and took about 40 s locally. It'll be slower on Vercel when Google sends temporary errors.
-- **Google and cloud IPs:** from Vercel's London region, Google returned results for about 60–75% of searches in testing. The retries cover most of the rest. If the status line shows fast-flights failing, unlock admin mode in ⚙ and switch to `auto` so SerpApi fills the gaps (it spends SerpApi quota).
-- **Cold starts:** after a quiet spell the first request takes a few seconds while the function starts.
-- **Two visitors** fetching the same week share the work: a city-day being fetched by one is skipped by the other, then shows up when it lands.
-
-**Admin mode:** with `ADMIN_PASSWORD` set, visitors can browse, search and use Refresh day/week. ⚙ settings, city toggles, Refresh all cache and Clear cache need the password. It's checked on the server and kept only in that browser tab's session.
 
 ## Development
 
@@ -170,4 +132,4 @@ The unit of caching is a **route-day**: one UK airport, one foreign airport, one
 2. The browser runs those jobs through `/api/fetch`, a few at a time (`FETCH_CONCURRENCY`), waiting the delay the server suggests between requests. After each one it refreshes the week, so cells fill in as they land.
 3. Changing the week, city or day drops jobs that haven't started; running ones finish. A job isn't repeated within a view (failures are cached for 15 minutes), except by Refresh.
 
-Every request is short, which is what lets the same code run on Vercel. Cached, unexpired data is never re-fetched unless you refresh, so reloading within the TTL makes no provider calls. A refresh ignores data fetched in the last 2 minutes, so mashing the button can't hammer Google.
+Every request is short, which is what lets the same code run on Vercel. Cached, unexpired data is never re-fetched unless you refresh, so reloading within the TTL makes no provider calls. A refresh ignores data fetched in the last 2 minutes, so mashing the button can't hammer Google; days that failed are always retried.

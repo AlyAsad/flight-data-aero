@@ -114,9 +114,11 @@ class SummaryBuilder:
         days: list[date],
         queued: set[tuple[str, date]],
         now: datetime | None = None,
+        entries: dict[RouteKey, CacheEntry] | None = None,
     ) -> list[tuple[date, list[FlightOption], CacheMeta, bool]]:
         now = now or utcnow()
-        entries = self._cache.get_many(direction, foreign, group.airports, days)
+        if entries is None:
+            entries = self._cache.get_many(direction, foreign, group.airports, days)
         out = []
         for day in days:
             day_entries = [
@@ -138,12 +140,16 @@ class SummaryBuilder:
         now = utcnow()
         days = week_dates(center)
         queued = {(j.group, j.date) for j in jobs}
+        # One query for every city: per-city queries are slow on a remote database.
+        entries = self._cache.get_many(
+            direction, foreign, {a for g in groups for a in g.airports}, days
+        )
         group_weeks: list[GroupWeek] = []
         for group in groups:
             summaries = [
                 _day_summary(group, day, flights, meta, is_queued)
                 for day, flights, meta, is_queued in self.group_days(
-                    direction, foreign, group, days, queued, now
+                    direction, foreign, group, days, queued, now, entries
                 )
             ]
             prices = [d.cheapest_price for d in summaries if d.cheapest_price is not None]
