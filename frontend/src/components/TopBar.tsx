@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from "react";
 import { useAirportSearch } from "../hooks/queries";
 import { addDays, rangeLabel, weekDates } from "../lib/dates";
 import type { Direction, QueueProgress, Status } from "../lib/types";
-import { useAdminPassword } from "../lib/admin";
 import { AirportPicker, airportLabel } from "./AirportPicker";
 import { Brand } from "./Logo";
 import { Spinner } from "./Spinner";
@@ -17,8 +15,6 @@ interface Props {
   onForeign: (iata: string) => void;
   onCenter: (date: string) => void;
   onRefreshWeek: () => void;
-  onExpireAll: () => void;
-  onClearCache: () => void;
   onOpenSettings: () => void;
 }
 
@@ -88,12 +84,14 @@ export function TopBar(props: Props) {
         </div>
 
         <div className="ml-auto flex items-center gap-1">
-          <RefreshMenu
-            adminOnlyHidden={!!props.status?.admin_protected}
-            onRefreshWeek={props.onRefreshWeek}
-            onExpireAll={props.onExpireAll}
-            onClearCache={props.onClearCache}
-          />
+          <button
+            type="button"
+            title="Re-fetch this week's prices"
+            className="flex items-center gap-1 rounded-md border border-slate-300 px-2.5 py-1 text-sm hover:bg-slate-50"
+            onClick={props.onRefreshWeek}
+          >
+            <span aria-hidden="true">⟳</span> Refresh week
+          </button>
           <button
             type="button"
             aria-label="Settings"
@@ -107,68 +105,6 @@ export function TopBar(props: Props) {
       </div>
       <StatusLine progress={props.progress} status={props.status} />
     </header>
-  );
-}
-
-function RefreshMenu(
-  props: Pick<Props, "onRefreshWeek" | "onExpireAll" | "onClearCache"> & { adminOnlyHidden: boolean },
-) {
-  const [open, setOpen] = useState(false);
-  const admin = useAdminPassword();
-  // On a protected site, cache-wide actions need an unlocked admin session.
-  const showCacheActions = !props.adminOnlyHidden || !!admin;
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
-
-  const item = (label: string, action: () => void, confirmText?: string) => (
-    <button
-      type="button"
-      role="menuitem"
-      className="block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-50"
-      onClick={() => {
-        setOpen(false);
-        if (!confirmText || window.confirm(confirmText)) action();
-      }}
-    >
-      {label}
-    </button>
-  );
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-label="Refresh menu"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        title="Refresh"
-        className="rounded px-2 py-1 text-lg hover:bg-slate-100"
-        onClick={() => setOpen((o) => !o)}
-      >
-        ⟳
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 z-30 mt-1 w-48 rounded-md border border-slate-200 bg-white py-1 shadow-lg"
-        >
-          {item("Refresh week", props.onRefreshWeek)}
-          {showCacheActions &&
-            item(
-              "Refresh all cache",
-              props.onExpireAll,
-              "Mark all cached flights as expired and re-fetch the current view?",
-            )}
-          {showCacheActions && item("Clear cache", props.onClearCache, "Delete all cached flight data?")}
-        </div>
-      )}
-    </div>
   );
 }
 

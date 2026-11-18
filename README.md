@@ -45,8 +45,8 @@ Results fill in as they arrive: the page asks the server for each missing city-d
 | ⚠ | The fetch failed. It is retried after 15 minutes, or sooner with Refresh. |
 | hatched cell | Date is in the past, or not yet on sale (more than ~330 days out) |
 
-**⟳ menu**: Refresh week, Refresh all cache (marks everything expired, then re-fetches the view), Clear cache.
-**⚙ settings**: provider mode, SerpApi cap and usage, concurrency, request delay (in ms, minimum 100) and which UK cities to include. Cache expiry is server configuration only (`CACHE_TTL_DAYS`). Enabling or disabling a city updates the sidebar and heatmap straight away.
+**⟳ Refresh week** (top bar) re-fetches the week shown. **Cache** (in ⚙ settings, admin only on a protected site): Refresh all cache (marks everything expired, then re-fetches the view) and Clear cache.
+**⚙ settings**: provider mode, SerpApi cap and usage, concurrency, request delay (in ms, minimum 1) and which UK cities to include. Cache expiry is server configuration only (`CACHE_TTL_DAYS`). Enabling or disabling a city updates the sidebar and heatmap straight away.
 
 ## Data providers
 
@@ -84,7 +84,7 @@ Switching provider mode applies from the next fetch, including the rest of a wee
 | `SERPAPI_MONTHLY_CAP` | `230` | Hard cap, never exceeded |
 | `SERPAPI_BATCH_MAX_AIRPORTS` | `7` | Max airports per overview query |
 | `FETCH_CONCURRENCY` | `3` | City-days fetched in parallel by the browser, max 8 |
-| `FETCH_DELAY_SECONDS` | `0.5-1` | Random delay between requests, in seconds (0.1–60). Doubles per consecutive fast-flights failure, up to 30 s. |
+| `FETCH_DELAY_SECONDS` | `0.5-1` | Random delay between requests, in seconds (0.001–60). Doubles per consecutive fast-flights failure, up to 30 s. |
 | `GOOGLE_CONSENT_COOKIE` | `true` | Send Google consent cookies with fast-flights requests |
 | `TURSO_DATABASE_URL` | (empty) | Turso database URL (`libsql://….turso.io`). Empty means the local file `data/flights.db`. Needed on Vercel. |
 | `TURSO_AUTH_TOKEN` | (empty) | Token for that Turso database |

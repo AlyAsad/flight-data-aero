@@ -8,10 +8,12 @@ import type { AppSettings, ProviderMode } from "../lib/types";
 interface Props {
   open: boolean;
   onClose: () => void;
+  onExpireAll?: () => void;
+  onClearCache?: () => void;
 }
 
-/** Delay limits, matching backend validation (0.1–60 s). */
-export const MIN_DELAY_MS = 100;
+/** Delay limits, matching backend validation (0.001–60 s). */
+export const MIN_DELAY_MS = 1;
 export const MAX_DELAY_MS = 60_000;
 
 export function validateDelayMs(minMs: number, maxMs: number): string | null {
@@ -110,7 +112,7 @@ function AdminUnlock({ unlocked }: { unlocked: boolean }) {
   );
 }
 
-export function SettingsDialog({ open, onClose }: Props) {
+export function SettingsDialog({ open, onClose, onExpireAll, onClearCache }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const qc = useQueryClient();
   const { data: settings } = useSettings();
@@ -266,7 +268,7 @@ export function SettingsDialog({ open, onClose }: Props) {
                   type="number"
                   min={MIN_DELAY_MS}
                   max={MAX_DELAY_MS}
-                  step={50}
+                  step={1}
                   aria-label="Minimum delay (ms)"
                   value={delayMs[0]}
                   onChange={(e) => setDelayMs([e.target.valueAsNumber, delayMs[1]])}
@@ -277,7 +279,7 @@ export function SettingsDialog({ open, onClose }: Props) {
                   type="number"
                   min={MIN_DELAY_MS}
                   max={MAX_DELAY_MS}
-                  step={50}
+                  step={1}
                   aria-label="Maximum delay (ms)"
                   value={delayMs[1]}
                   onChange={(e) => setDelayMs([delayMs[0], e.target.valueAsNumber])}
@@ -312,6 +314,37 @@ export function SettingsDialog({ open, onClose }: Props) {
               ))}
             </div>
             {groupsError && <p className="mt-1 text-xs text-rose-600">{groupsError}</p>}
+          </fieldset>
+
+          <fieldset>
+            <legend className="text-sm font-medium">Cache</legend>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50"
+                onClick={() => {
+                  if (window.confirm("Mark all cached flights as expired and re-fetch the current view?")) {
+                    onExpireAll?.();
+                    onClose();
+                  }
+                }}
+              >
+                Refresh all cache
+              </button>
+              <button
+                type="button"
+                className="rounded border border-rose-300 px-3 py-1 text-sm text-rose-700 hover:bg-rose-50"
+                onClick={() => {
+                  if (window.confirm("Delete all cached flight data?")) {
+                    onClearCache?.();
+                    onClose();
+                  }
+                }}
+              >
+                Clear cache
+              </button>
+            </div>
+            <span className="block text-xs text-slate-500">Applies to every route, not just this view.</span>
           </fieldset>
 
           </fieldset>

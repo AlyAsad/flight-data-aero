@@ -86,8 +86,6 @@ export default function App() {
         onForeign={(foreign) => update({ foreign })}
         onCenter={(center) => update({ center })}
         onRefreshWeek={() => refreshWeek.mutate()}
-        onExpireAll={() => expireAll.mutate()}
-        onClearCache={() => clearCache.mutate()}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -130,7 +128,12 @@ export default function App() {
         </div>
       )}
 
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onExpireAll={() => expireAll.mutate()}
+        onClearCache={() => clearCache.mutate()}
+      />
     </div>
   );
 }

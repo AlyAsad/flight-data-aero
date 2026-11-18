@@ -6,9 +6,9 @@ import { setAdminPassword } from "../lib/admin";
 
 describe("validateDelayMs", () => {
   it("accepts 100 ms and up, with from <= to", () => {
-    expect(validateDelayMs(100, 250)).toBeNull();
+    expect(validateDelayMs(1, 250)).toBeNull();
     expect(validateDelayMs(500, 1000)).toBeNull();
-    expect(validateDelayMs(50, 1000)).toMatch(/100 ms/);
+    expect(validateDelayMs(0, 1000)).toMatch(/1 ms/);
     expect(validateDelayMs(800, 500)).toMatch(/at least/);
     expect(validateDelayMs(NaN, 500)).toMatch(/Enter/);
     expect(validateDelayMs(100, 70_000)).toMatch(/60000/);
@@ -104,8 +104,8 @@ describe("SettingsDialog", () => {
 
   it("blocks saving an invalid delay or no cities", async () => {
     setup();
-    fireEvent.change(await screen.findByLabelText("Minimum delay (ms)"), { target: { value: "50" } });
-    expect(screen.getByText(/Minimum delay is 100 ms/)).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("Minimum delay (ms)"), { target: { value: "0" } });
+    expect(screen.getByText(/Minimum delay is 1 ms/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("Minimum delay (ms)"), { target: { value: "500" } });
