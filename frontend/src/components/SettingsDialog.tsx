@@ -254,7 +254,7 @@ export function SettingsDialog({ open, onClose, onExpireAll, onClearCache }: Pro
               <input
                 type="number"
                 min={1}
-                max={8}
+                max={64}
                 value={draft.concurrency}
                 onChange={(e) => set("concurrency", Number(e.target.value))}
                 className="mt-1 w-full rounded border border-slate-300 px-2 py-1"

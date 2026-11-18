@@ -27,7 +27,7 @@ export default function App() {
   const { data: settings } = useSettings();
   // Fetching is driven from here: the queue runs the jobs each week response asks for.
   const queueView = [state.direction, state.foreign, state.center, state.group, state.day].join("|");
-  const { progress, offer, reset } = useFetchQueue(queueView, settings?.concurrency ?? 2);
+  const { progress, offer, reset } = useFetchQueue(queueView, settings?.concurrency ?? 8);
   useEffect(() => {
     if (week.data && !week.isPlaceholderData) offer(week.data.jobs);
   }, [week.data, week.isPlaceholderData, offer]);

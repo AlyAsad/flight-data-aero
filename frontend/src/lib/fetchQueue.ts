@@ -37,7 +37,7 @@ export class FetchQueue {
 
   constructor(opts: Options) {
     this.opts = { sleep: (ms) => new Promise((r) => setTimeout(r, ms)), ...opts };
-    this.concurrency = Math.max(1, opts.concurrency ?? 2);
+    this.concurrency = Math.max(1, opts.concurrency ?? 8);
   }
 
   setConcurrency(n: number): void {

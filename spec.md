@@ -79,7 +79,7 @@ Rules:
 - Cached, unexpired route-days are never re-fetched unless the user refreshes.
 - Dates in the past are skipped. Dates beyond \~330 days out are shown as "not yet on sale".
 - When the user changes the selected city or week, the queue is re-prioritised; already-running jobs finish.
-- A global worker pool fetches with limited concurrency (default 2) and a jittered delay (default 1–3 s) between requests.
+- A global worker pool fetches with limited concurrency (default 8) and a jittered delay (default 1–3 s) between requests.
 - The frontend polls (or uses SSE) for progress and fills cells as route-days complete.
 - If a fetch fails and an expired cache entry exists, show the expired data with a "stale" badge rather than nothing.
 - The week picker accepts any date and centres the week around that day (for example, if a date is selected which is on a Wednesday, the information for that date will be fetched along with 3 days before and 3 days after that date).
@@ -205,7 +205,7 @@ REST endpoints under `/api`, served by FastAPI on `localhost:8000`. `direction` 
 | POST | `/refresh` | Body `{scope: "day" or "week", direction, foreign, group?, date?, center_date?}`. |
 | POST | `/cache/expire-all` | Refresh all cache. |
 | DELETE | `/cache` | Clear cache. |
-| GET / PUT | `/settings` | `ttl_days` (1–5), `provider_mode`, `serpapi_monthly_cap`, `concurrency`, `delay_seconds`. |
+| GET / PUT | `/settings` | `ttl_days` (1–5), `provider_mode`, `serpapi_monthly_cap`, `concurrency` (1–64), `delay_seconds`. |
 | GET | `/status` | Provider health, SerpApi usage this month, queue size. |
 
 Settings are stored in SQLite; `.env` values are defaults on first run.
@@ -285,7 +285,7 @@ SERPAPI_API_KEY=
 PROVIDER_MODE=auto
 CACHE_TTL_DAYS=2
 SERPAPI_MONTHLY_CAP=230
-FETCH_CONCURRENCY=2
+FETCH_CONCURRENCY=8
 FETCH_DELAY_SECONDS=1-3
 ```
 

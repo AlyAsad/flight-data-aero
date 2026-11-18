@@ -191,7 +191,7 @@ class AppSettings(BaseModel):
     ttl_days: int = Field(default=2, ge=1, le=5)
     provider_mode: ProviderMode = ProviderMode.FAST_FLIGHTS
     serpapi_monthly_cap: int = Field(default=230, ge=0, le=250)
-    concurrency: int = Field(default=2, ge=1, le=8)
+    concurrency: int = Field(default=8, ge=1, le=64)
     delay_seconds: tuple[float, float] = (0.5, 1.0)
 
     @field_validator("delay_seconds", mode="before")
@@ -205,7 +205,7 @@ class SettingsUpdate(BaseModel):
 
     provider_mode: ProviderMode | None = None
     serpapi_monthly_cap: int | None = Field(default=None, ge=0, le=250)
-    concurrency: int | None = Field(default=None, ge=1, le=8)
+    concurrency: int | None = Field(default=None, ge=1, le=64)
     delay_seconds: tuple[float, float] | None = None
 
     @field_validator("delay_seconds", mode="before")
